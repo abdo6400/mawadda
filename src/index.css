@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --primary-color: #176B5B;
+    --primary-light: #238A76;
+    --primary-dark: #0F493E;
+    --secondary-color: #C8A96B;
+    --secondary-light: #DFC894;
+    --bg-color: #FAF8F3;
+    --text-color: #252525;
+  }
+
+  .dark {
+    --primary-color: #238A76;
+    --primary-light: #32A790;
+    --primary-dark: #0B2520;
+    --secondary-color: #DFC894;
+    --secondary-light: #F0DEB4;
+    --bg-color: #0E1D19;
+    --text-color: #F3F1EC;
+  }
+}
+
+body {
+  font-family: 'Tajawal', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-amiri {
+  font-family: 'Amiri', serif;
+}
+
+/* Islamic arabesque subtle pattern overlay */
+.arabesque-pattern {
+  background-image: radial-gradient(rgba(200, 169, 107, 0.08) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+.arabesque-pattern-dark {
+  background-image: radial-gradient(rgba(200, 169, 107, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
+}

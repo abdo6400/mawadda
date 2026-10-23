@@ -1,0 +1,6 @@
+{
+  "name": "Mawadda - Islamic Marriage Conversation Game",
+  "description": "مودة - تطبيق بطاقات حوارية هادفة للتعارف قبل الزواج بضوابط إسلامية وقيم راقية",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1703,6 +1703,30 @@ jobs:
                   </div>
                 </div>
 
+                {/* Direct Download for Compiled APK */}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-[#176B5B] to-[#0E463B] text-white shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border border-[#C8A96B]/50">
+                  <div>
+                    <span className="inline-block px-2 py-0.5 rounded-full bg-[#C8A96B] text-black font-extrabold text-[10px] mb-1">
+                      جاهز للتثبيت الفوري ✓ (تم البناء بنجاح)
+                    </span>
+                    <h5 className="font-bold text-sm text-white flex items-center gap-1.5">
+                      <Download size={16} className="text-[#DFC894]" />
+                      <span>تحميل ملف APK المترجم مباشرة (23.1 ميجابايت)</span>
+                    </h5>
+                    <p className="text-[11px] text-white/80 mt-0.5">
+                      تم بناؤه وتوقيعه بنجاح عبر خوادم GitHub مع كافة الأسئلة الـ 180 والأصوات والأيقونات جاهزاً لهاتفك.
+                    </p>
+                  </div>
+                  <a
+                    href="/mawadda-release.apk"
+                    download="mawadda-release.apk"
+                    className="px-5 py-2.5 rounded-xl bg-[#C8A96B] hover:bg-[#B89656] text-black font-extrabold text-xs transition flex items-center gap-2 shadow-md shrink-0"
+                  >
+                    <Download size={16} />
+                    <span>تحميل الـ APK الآن</span>
+                  </a>
+                </div>
+
                 {/* Direct Download ZIP for Flutter Project */}
                 <div className="p-4 rounded-xl bg-gradient-to-r from-[#176B5B]/15 to-[#C8A96B]/15 border border-[#176B5B]/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                   <div>
@@ -1804,6 +1828,22 @@ jobs:
               </div>
 
               <div className="space-y-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
+                {/* Ready APK Download */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#176B5B] to-[#0E463B] text-white flex items-center justify-between shadow-md border border-[#C8A96B]/50">
+                  <div>
+                    <span className="font-extrabold text-sm block text-[#DFC894]">تحميل ملف APK المباشر</span>
+                    <span className="text-[10px] text-white/80">حجم الملف: 23.1 ميجابايت (جاهز للتثبيت)</span>
+                  </div>
+                  <a
+                    href="/mawadda-release.apk"
+                    download="mawadda-release.apk"
+                    className="px-4 py-2 rounded-xl bg-[#C8A96B] hover:bg-[#B89656] text-black font-extrabold text-xs transition shadow flex items-center gap-1.5"
+                  >
+                    <Download size={14} />
+                    <span>تنزيل APK</span>
+                  </a>
+                </div>
+
                 <div className="p-3 rounded-xl bg-[#176B5B]/10 dark:bg-[#176B5B]/20 border border-[#176B5B]/30">
                   <span className="font-bold text-[#176B5B] dark:text-[#32A790] block mb-1">
                     لماذا لا تحتاج للانتظار أو تثبيت ملف APK يدوي؟

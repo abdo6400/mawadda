@@ -6,12 +6,12 @@ const jsonPath = path.resolve('assets/questions/questions.json');
 const raw = fs.readFileSync(jsonPath, 'utf8');
 const data = JSON.parse(raw);
 
-console.log('Testing questions dataset integrity...');
+console.log('Testing questions dataset integrity for 900 questions...');
 if (!data.categories || data.categories.length !== 6) {
   throw new Error(`Expected 6 categories, got ${data.categories ? data.categories.length : 0}`);
 }
-if (!data.questions || data.questions.length !== 180) {
-  throw new Error(`Expected 180 questions, got ${data.questions ? data.questions.length : 0}`);
+if (!data.questions || data.questions.length !== 900) {
+  throw new Error(`Expected 900 questions, got ${data.questions ? data.questions.length : 0}`);
 }
 
 const ids = new Set();
@@ -43,19 +43,19 @@ for (const q of data.questions) {
 }
 
 for (const cat of data.categories) {
-  if (categoryCounts[cat.id] !== 30) {
-    throw new Error(`Category ${cat.id} has ${categoryCounts[cat.id]} questions, expected 30`);
+  if (categoryCounts[cat.id] !== 150) {
+    throw new Error(`Category ${cat.id} has ${categoryCounts[cat.id]} questions, expected 150`);
   }
   for (let l = 1; l <= 3; l++) {
     const lKey = `${cat.id}_lvl${l}`;
-    if (levelCounts[lKey] !== 10) {
-      throw new Error(`Category ${cat.id} level ${l} has ${levelCounts[lKey]} questions, expected 10`);
+    if (levelCounts[lKey] !== 50) {
+      throw new Error(`Category ${cat.id} level ${l} has ${levelCounts[lKey]} questions, expected 50`);
     }
   }
 }
 
-console.log('✅ ALL 180 questions verified successfully:');
+console.log('✅ ALL 900 questions verified successfully:');
 console.log(' - 6 Categories');
-console.log(' - 30 Questions per Category (10 Level 1, 10 Level 2, 10 Level 3)');
+console.log(' - 150 Questions per Category (50 Level 1, 50 Level 2, 50 Level 3)');
 console.log(' - 100% Unique IDs');
 console.log(' - Complete Arabic questions with follow-ups and tags');

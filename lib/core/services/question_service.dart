@@ -75,4 +75,13 @@ class QuestionService {
     }
     return result;
   }
+
+  List<QuestionModel> getUnviewedQuestions(Set<String> viewedIds, {String? categoryId, int? level}) {
+    return _questions.where((q) {
+      if (viewedIds.contains(q.id)) return false;
+      if (categoryId != null && q.categoryId != categoryId) return false;
+      if (level != null && q.level != level) return false;
+      return true;
+    }).toList();
+  }
 }

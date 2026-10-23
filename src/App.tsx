@@ -24,7 +24,15 @@ import {
   Download,
   Copy,
   Check,
-  Play
+  Play,
+  Search,
+  Eye,
+  EyeOff,
+  Edit3,
+  Share2,
+  FileText,
+  Filter,
+  CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MAWADDA_DATA, Question, Category } from './data/questionsData';
@@ -68,6 +76,28 @@ export default function App() {
       return [];
     }
   });
+
+  // Hide already viewed/explored questions toggle
+  const [hideExplored, setHideExplored] = useState<boolean>(() => {
+    return localStorage.getItem('mawadda_hide_explored') === 'true';
+  });
+
+  // Private notes on cards
+  const [cardNotes, setCardNotes] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('mawadda_card_notes') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  // Search & Library filter states
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedSearchCat, setSelectedSearchCat] = useState<string | null>(null);
+  const [selectedSearchLevel, setSelectedSearchLevel] = useState<number | null>(null);
+  const [showNoteModal, setShowNoteModal] = useState<boolean>(false);
+  const [noteInput, setNoteInput] = useState<string>('');
+  const [copiedCardNotice, setCopiedCardNotice] = useState<boolean>(false);
 
   const [activeSession, setActiveSession] = useState<ActiveSession | null>(() => {
     try {
@@ -133,6 +163,16 @@ export default function App() {
     }
   }, [activeSession]);
 
+  // Synchronize hideExplored
+  useEffect(() => {
+    localStorage.setItem('mawadda_hide_explored', String(hideExplored));
+  }, [hideExplored]);
+
+  // Synchronize cardNotes
+  useEffect(() => {
+    localStorage.setItem('mawadda_card_notes', JSON.stringify(cardNotes));
+  }, [cardNotes]);
+
   // Splash timeout
   useEffect(() => {
     if (currentScreen === 'splash') {
@@ -190,21 +230,27 @@ export default function App() {
     });
   };
 
-  // Start category game
+  // Start category game with hideExplored filter support
   const startCategoryGame = (catId: string, level?: number | null) => {
     const cat = MAWADDA_DATA.categories.find(c => c.id === catId);
     let qs = MAWADDA_DATA.questions.filter(q => q.categoryId === catId);
     if (level) {
       qs = qs.filter(q => q.level === level);
     }
+    if (hideExplored) {
+      const freshOnly = qs.filter(q => !exploredIds.includes(q.id));
+      if (freshOnly.length > 0) {
+        qs = freshOnly;
+      }
+    }
     const title = level
-      ? `${cat?.nameArabic} — المستوى ${level}`
-      : `${cat?.nameArabic} (المحور كاملاً)`;
+      ? `${cat?.nameArabic} — المستوى ${level} (${qs.length} بطاقة)`
+      : `${cat?.nameArabic} (${qs.length} بطاقة)`;
     startGame(qs, cat, title);
     setLevelPickerCategory(null);
   };
 
-  // Start custom session
+  // Start custom session with hideExplored filter support
   const startCustomSession = () => {
     if (selectedCats.length === 0) return;
     soundManager.playCardClick();
@@ -212,6 +258,12 @@ export default function App() {
     let pool = MAWADDA_DATA.questions.filter(q => selectedCats.includes(q.categoryId));
     if (selectedLevel) {
       pool = pool.filter(q => q.level === selectedLevel);
+    }
+    if (hideExplored) {
+      const freshOnly = pool.filter(q => !exploredIds.includes(q.id));
+      if (freshOnly.length > 0) {
+        pool = freshOnly;
+      }
     }
     // Shuffle pool
     const shuffled = [...pool].sort(() => 0.5 - Math.random());
@@ -222,6 +274,64 @@ export default function App() {
       : `جلسة حوار شاملة (${chosen.length} بطاقة)`;
 
     startGame(chosen, null, title);
+  };
+
+  // Start curated themed session
+  const startCuratedSession = (themeType: 'first_meeting' | 'deen' | 'finance' | 'hard_scenarios') => {
+    soundManager.playCardClick();
+    let qs: Question[] = [];
+    let title = '';
+
+    if (themeType === 'first_meeting') {
+      title = 'جلسة اللقاء الأول والتوافق المبدئي (15 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => q.level === 1);
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 15 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 15);
+    } else if (themeType === 'deen') {
+      title = 'جلسة القيم والمبادئ والعمق الديني (20 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => q.categoryId === 'religion_values');
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 20 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
+    } else if (themeType === 'finance') {
+      title = 'جلسة إدارة المال ومسؤوليات المعيشة (20 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => ['finance_work', 'responsibilities_life'].includes(q.categoryId));
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 20 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
+    } else {
+      title = 'جلسة السيناريوهات والمواقف الصريحة (20 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => q.level === 3);
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 20 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
+    }
+
+    startGame(qs, null, title);
+  };
+
+  // Copy card text for sharing
+  const copyCardText = (q: Question) => {
+    const cat = MAWADDA_DATA.categories.find(c => c.id === q.categoryId);
+    const text = `🌸 بطاقة حوار من تطبيق مَوَدَّة 🌸\nالمحور: ${cat?.nameArabic || ''}\nالمستوى: ${q.level}\n\nالسؤال: ${q.question}\n\nسؤال فرعي: ${q.followUp}`;
+    navigator.clipboard.writeText(text);
+    setCopiedCardNotice(true);
+    setTimeout(() => setCopiedCardNotice(false), 2000);
+  };
+
+  // Save note for current question
+  const saveCurrentNote = (qId: string) => {
+    setCardNotes(prev => {
+      const next = { ...prev };
+      if (noteInput.trim()) {
+        next[qId] = noteInput.trim();
+      } else {
+        delete next[qId];
+      }
+      return next;
+    });
+    setShowNoteModal(false);
   };
 
   // Start favorites session
@@ -646,14 +756,14 @@ jobs:
                     مرحباً بكما في مودة
                   </h3>
                   <p className="text-xs text-white/80 leading-relaxed mb-4">
-                    حوار هادف يبني جسور الألفة، ويكشف المشتركات ويضع أركان الشراكة الصادقة قبل الزواج.
+                    حوار هادف يبني جسور الألفة، يضم 900 بطاقة حوارية متدرجة وشاملة لكافة جوانب الحياة الزوجية.
                   </p>
 
-                  {/* Progress tracker */}
+                  {/* Progress tracker for 900 questions */}
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
                     <div className="flex justify-between text-xs mb-1.5 font-semibold">
                       <span>الأسئلة المستكشفة: {exploredIds.length} من {MAWADDA_DATA.totalQuestions}</span>
-                      <span className="text-[#C8A96B]">{Math.round((exploredIds.length / MAWADDA_DATA.totalQuestions) * 100)}%</span>
+                      <span className="text-[#C8A96B] font-bold">{Math.round((exploredIds.length / MAWADDA_DATA.totalQuestions) * 100)}%</span>
                     </div>
                     <div className="w-full bg-black/20 h-2 rounded-full overflow-hidden">
                       <div
@@ -662,6 +772,39 @@ jobs:
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Hide Already Viewed Questions Filter Card */}
+                <div className="p-3.5 rounded-2xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] flex items-center justify-between shadow-xs">
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition ${hideExplored ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+                      {hideExplored ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </div>
+                    <div>
+                      <div className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                        {hideExplored ? 'إخفاء الأسئلة السابقة مُفعّل' : 'إخفاء الأسئلة التي تمت مناقشتها'}
+                      </div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400">
+                        {hideExplored
+                          ? `المتبقي: ${MAWADDA_DATA.questions.filter(q => !exploredIds.includes(q.id)).length} سؤال جديد لم يُعرض بعد`
+                          : `يتم تصفح كافة الأسئلة الـ 900`}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setHideExplored(!hideExplored);
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      hideExplored
+                        ? 'bg-[#176B5B] text-white shadow-xs'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200'
+                    }`}
+                  >
+                    {hideExplored ? <Check size={14} /> : null}
+                    <span>{hideExplored ? 'مستبعدة' : 'تفعيل'}</span>
+                  </button>
                 </div>
 
                 {/* Continue Previous Session Card if exists */}
@@ -686,6 +829,51 @@ jobs:
                   </div>
                 )}
 
+                {/* Curated Themed Fast Sessions */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-bold text-xs text-gray-800 dark:text-gray-200">جلسات مقترحة سريعة</h4>
+                    <span className="text-[10px] text-[#C8A96B] font-semibold">جاهزة بنقرة واحدة</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <button
+                      onClick={() => startCuratedSession('first_meeting')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#176B5B] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#176B5B] dark:text-[#32A790] block mb-1">اللقاء الأول (15)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#176B5B]">جلسة التعارف المبدئي</span>
+                      <span className="text-[10px] text-gray-500">كسر الجليد وتوافق عام</span>
+                    </button>
+
+                    <button
+                      onClick={() => startCuratedSession('deen')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#C8A96B] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#9E7B35] dark:text-[#DFC894] block mb-1">الرؤية والعبادة (20)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#C8A96B]">جلسة العمق القيمي</span>
+                      <span className="text-[10px] text-gray-500">الدين والبيت المسلم</span>
+                    </button>
+
+                    <button
+                      onClick={() => startCuratedSession('finance')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#B8860B] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#B8860B] block mb-1">الواقع والعمل (20)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#B8860B]">المال وإدارة المعيشة</span>
+                      <span className="text-[10px] text-gray-500">الميزانية والمسؤوليات</span>
+                    </button>
+
+                    <button
+                      onClick={() => startCuratedSession('hard_scenarios')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#7A3E65] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#7A3E65] block mb-1">مستوى متقدم (20)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#7A3E65]">سيناريوهات صريحة</span>
+                      <span className="text-[10px] text-gray-500">المواقف وحل الخلافات</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Featured: Start Custom Session */}
                 <div
                   onClick={() => {
@@ -696,10 +884,10 @@ jobs:
                 >
                   <div className="flex justify-between items-start">
                     <div>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#C8A96B] text-black">جلسة موجهة</span>
-                      <h4 className="font-bold text-base text-[#176B5B] dark:text-[#32A790] mt-1">ابدأ رحلة التعارف</h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#C8A96B] text-black">جلسة حرة مخصصة</span>
+                      <h4 className="font-bold text-base text-[#176B5B] dark:text-[#32A790] mt-1">تخصيص جلسة حوار</h4>
                       <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-                        خصص محاور ومستوى الحوار لتبدأ جلسة بطاقات ممتعة متدرجة.
+                        اختر المحاور المفضلة والمستوى وعدد البطاقات التي تناسب وقتكما.
                       </p>
                     </div>
                     <div className="w-9 h-9 rounded-full bg-[#176B5B] text-white flex items-center justify-center group-hover:scale-105 transition">
@@ -737,8 +925,8 @@ jobs:
                       <Grid size={16} />
                     </div>
                     <div>
-                      <div className="text-xs font-bold">كل المحاور</div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">6 مجالات حوارية</div>
+                      <div className="text-xs font-bold">مكتبة الـ 900 سؤال</div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400">6 محاور · بحث وتصفح</div>
                     </div>
                   </div>
                 </div>
@@ -746,7 +934,7 @@ jobs:
                 {/* Categories Overview List */}
                 <div>
                   <div className="flex justify-between items-center mb-2.5">
-                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">المحاور الرئيسية (180 سؤالاً)</h4>
+                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">المحاور الرئيسية (150 سؤالاً لكل محور)</h4>
                     <button
                       onClick={() => setCurrentScreen('categories')}
                       className="text-xs text-[#176B5B] dark:text-[#32A790] font-semibold hover:underline"
@@ -847,81 +1035,228 @@ jobs:
             </div>
           )}
 
-          {/* SCREEN: CATEGORIES */}
+          {/* SCREEN: CATEGORIES / 900 QUESTIONS LIBRARY */}
           {currentScreen === 'categories' && (
             <div className="flex-1 flex flex-col justify-between overflow-y-auto">
-              <div className="p-5">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setCurrentScreen('home')}
+                      className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition"
+                    >
+                      <ArrowRight size={18} />
+                    </button>
+                    <div>
+                      <h3 className="text-lg font-bold">مكتبة الـ 900 سؤال</h3>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                        150 سؤالاً لكل محور عبر 3 مستويات من العمق والتدرج
+                      </p>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => setCurrentScreen('home')}
-                    className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-800 transition"
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setHideExplored(!hideExplored);
+                    }}
+                    className={`p-2 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 ${
+                      hideExplored
+                        ? 'bg-[#176B5B] text-white border-[#176B5B]'
+                        : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300'
+                    }`}
+                    title={hideExplored ? 'إلغاء إخفاء الأسئلة السابقة' : 'إخفاء الأسئلة التي تمت مناقشتها مسبقاً'}
                   >
-                    <ArrowRight size={18} />
+                    {hideExplored ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <span className="hidden sm:inline">{hideExplored ? 'إخفاء المستكشف' : 'عرض الكل'}</span>
                   </button>
-                  <h3 className="text-lg font-bold">المحاور الحوارية الستة</h3>
                 </div>
 
-                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                  كل محور يحتوي على 30 سؤالاً مقسمة بالتساوي على 3 مستويات من التدرج والعمق.
-                </p>
+                {/* Instant Search Bar */}
+                <div className="relative">
+                  <Search size={16} className="absolute right-3.5 top-3 text-gray-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="ابحث في 900 سؤال (مثال: صلاة، غضب، ميزانية، أطفال)..."
+                    className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#162B26] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-hidden focus:border-[#176B5B]"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute left-3 top-2.5 text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
 
-                <div className="space-y-3.5">
-                  {MAWADDA_DATA.categories.map(cat => {
-                    const catQuestions = MAWADDA_DATA.questions.filter(q => q.categoryId === cat.id);
-                    const answeredCount = catQuestions.filter(q => exploredIds.includes(q.id)).length;
-                    const pct = Math.round((answeredCount / catQuestions.length) * 100);
+                {/* Level Quick Filter Tabs */}
+                <div className="flex gap-1.5 overflow-x-auto pb-1 text-[11px] scrollbar-none">
+                  <button
+                    onClick={() => setSelectedSearchLevel(null)}
+                    className={`px-3 py-1 rounded-lg shrink-0 font-bold transition ${selectedSearchLevel === null ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  >
+                    كل المستويات
+                  </button>
+                  <button
+                    onClick={() => setSelectedSearchLevel(1)}
+                    className={`px-3 py-1 rounded-lg shrink-0 font-bold transition ${selectedSearchLevel === 1 ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  >
+                    مستوى 1: استكشاف أولي
+                  </button>
+                  <button
+                    onClick={() => setSelectedSearchLevel(2)}
+                    className={`px-3 py-1 rounded-lg shrink-0 font-bold transition ${selectedSearchLevel === 2 ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  >
+                    مستوى 2: تفكير وقيم
+                  </button>
+                  <button
+                    onClick={() => setSelectedSearchLevel(3)}
+                    className={`px-3 py-1 rounded-lg shrink-0 font-bold transition ${selectedSearchLevel === 3 ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                  >
+                    مستوى 3: مواقف وقرارات
+                  </button>
+                </div>
 
-                    return (
-                      <div
-                        key={cat.id}
-                        className="p-4 rounded-2xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] shadow-xs space-y-3"
-                      >
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: `${cat.colorHex}25` }}
-                          >
-                            {renderCategoryIcon(cat.icon, cat.colorHex)}
+                {/* Search Results if query exists */}
+                {searchQuery.trim() ? (
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const qLower = searchQuery.toLowerCase().trim();
+                      let results = MAWADDA_DATA.questions.filter(q => {
+                        const matchText = q.question.toLowerCase().includes(qLower) ||
+                          q.followUp.toLowerCase().includes(qLower) ||
+                          q.tags.some(t => t.toLowerCase().includes(qLower));
+                        if (!matchText) return false;
+                        if (selectedSearchLevel && q.level !== selectedSearchLevel) return false;
+                        if (hideExplored && exploredIds.includes(q.id)) return false;
+                        return true;
+                      });
+
+                      if (results.length === 0) {
+                        return (
+                          <div className="text-center py-12">
+                            <HelpCircle size={32} className="mx-auto text-gray-400 mb-2" />
+                            <p className="text-xs font-bold text-gray-600 dark:text-gray-300">لم يتم العثور على أسئلة مطابقة</p>
+                            <p className="text-[11px] text-gray-400 mt-1">جرب البحث بكلمات أخرى أو قم بإلغاء إخفاء الأسئلة المستكشفة</p>
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100">{cat.nameArabic}</h4>
-                              <span className="text-xs font-bold" style={{ color: cat.colorHex }}>{answeredCount}/{catQuestions.length}</span>
+                        );
+                      }
+
+                      return (
+                        <>
+                          <div className="text-[11px] font-semibold text-gray-500 flex justify-between items-center">
+                            <span>نتائج البحث ({results.length} سؤال)</span>
+                            <button
+                              onClick={() => startGame(results, null, `نتائج البحث: ${searchQuery} (${results.length} بطاقة)`)}
+                              className="text-[#176B5B] dark:text-[#32A790] font-bold hover:underline"
+                            >
+                              بدء جلسة بهذه الأسئلة
+                            </button>
+                          </div>
+                          {results.slice(0, 30).map(q => {
+                            const cat = MAWADDA_DATA.categories.find(c => c.id === q.categoryId);
+                            const isExplored = exploredIds.includes(q.id);
+
+                            return (
+                              <div
+                                key={q.id}
+                                onClick={() => startGame([q, ...results.filter(item => item.id !== q.id)], cat, `بحث: ${searchQuery}`)}
+                                className="p-3.5 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#176B5B] transition cursor-pointer space-y-1.5"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold"
+                                    style={{ backgroundColor: `${cat?.colorHex}20`, color: cat?.colorHex }}
+                                  >
+                                    {cat?.nameArabic} · م{q.level}
+                                  </span>
+                                  {isExplored && (
+                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                                      <CheckCircle2 size={12} />
+                                      <span>نوقش سابقاً</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs font-bold text-gray-900 dark:text-gray-100 leading-relaxed">
+                                  {q.question}
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  /* Standard Categories List */
+                  <div className="space-y-3">
+                    {MAWADDA_DATA.categories.map(cat => {
+                      const catQuestions = MAWADDA_DATA.questions.filter(q => q.categoryId === cat.id);
+                      const answeredCount = catQuestions.filter(q => exploredIds.includes(q.id)).length;
+                      const freshCount = catQuestions.length - answeredCount;
+                      const pct = Math.round((answeredCount / catQuestions.length) * 100);
+
+                      return (
+                        <div
+                          key={cat.id}
+                          className="p-4 rounded-2xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] shadow-xs space-y-3"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${cat.colorHex}25` }}
+                            >
+                              {renderCategoryIcon(cat.icon, cat.colorHex)}
                             </div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
-                              {cat.descriptionArabic}
-                            </p>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100">{cat.nameArabic}</h4>
+                                <span className="text-xs font-bold" style={{ color: cat.colorHex }}>
+                                  {catQuestions.length} سؤالاً
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 leading-relaxed">
+                                {cat.descriptionArabic}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5 text-[10px] text-gray-400">
+                                <span>{answeredCount} تمت مناقشتها</span>
+                                <span>·</span>
+                                <span className="text-emerald-600 dark:text-emerald-400 font-bold">{freshCount} جديدة متبقية</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="w-full bg-gray-100 dark:bg-black/30 h-1.5 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-300"
+                              style={{ width: `${pct}%`, backgroundColor: cat.colorHex }}
+                            />
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => startCategoryGame(cat.id, null)}
+                              className="flex-1 py-2 rounded-xl text-xs font-bold text-white shadow-xs transition"
+                              style={{ backgroundColor: cat.colorHex }}
+                            >
+                              {hideExplored ? `بدء الأسئلة الجديدة (${freshCount})` : `بدء المحور كاملاً (150)`}
+                            </button>
+                            <button
+                              onClick={() => setLevelPickerCategory(cat)}
+                              className="px-3 py-2 rounded-xl text-xs font-bold border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                            >
+                              المستويات
+                            </button>
                           </div>
                         </div>
-
-                        {/* Progress Bar */}
-                        <div className="w-full bg-gray-100 dark:bg-black/30 h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-300"
-                            style={{ width: `${pct}%`, backgroundColor: cat.colorHex }}
-                          />
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => startCategoryGame(cat.id, null)}
-                            className="flex-1 py-2 rounded-xl text-xs font-bold text-white shadow-xs transition"
-                            style={{ backgroundColor: cat.colorHex }}
-                          >
-                            بدء المحور كاملاً
-                          </button>
-                          <button
-                            onClick={() => setLevelPickerCategory(cat)}
-                            className="px-3 py-2 rounded-xl text-xs font-bold border border-gray-300 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
-                          >
-                            اختيار مستوى
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Back to Home Button */}
@@ -938,7 +1273,22 @@ jobs:
 
           {/* SCREEN: GAME / QUESTION CARDS (Core experience) */}
           {currentScreen === 'game' && currentQ && (
-            <div className="flex-1 flex flex-col justify-between p-5 overflow-hidden">
+            <div className="flex-1 flex flex-col justify-between p-5 overflow-hidden relative">
+              {/* Toast for copied card */}
+              <AnimatePresence>
+                {copiedCardNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-[#176B5B] text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5"
+                  >
+                    <Check size={14} className="text-[#DFC894]" />
+                    <span>تم نسخ السؤال للحافظة بنجاح</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Header Bar with Category, Level, Favorite and Exit */}
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -954,19 +1304,56 @@ jobs:
                   </button>
 
                   <div className="flex items-center gap-1.5">
+                    {/* Explored status indicator */}
+                    {exploredIds.includes(currentQ.id) ? (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 size={11} />
+                        <span>نوقش سابقاً</span>
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#C8A96B]/20 text-[#8B6724] dark:text-[#DFC894]">
+                        سؤال جديد
+                      </span>
+                    )}
+
                     <span
                       className="px-2.5 py-0.5 rounded-full text-[11px] font-bold"
                       style={{ backgroundColor: `${currentCatColor}20`, color: currentCatColor }}
                     >
-                      {currentQ.level === 1 ? 'مستوى 1: تعارف أولي' : (currentQ.level === 2 ? 'مستوى 2: فهم أعمق' : 'مستوى 3: مواقف وقرارات')}
+                      {currentQ.level === 1 ? 'مستوى 1' : (currentQ.level === 2 ? 'مستوى 2' : 'مستوى 3')}
                     </span>
+
+                    {/* Copy card text button */}
+                    <button
+                      onClick={() => copyCardText(currentQ)}
+                      className="p-1.5 rounded-full border border-gray-300 dark:border-gray-700 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition"
+                      title="نسخ السؤال للمشاركة"
+                    >
+                      <Share2 size={15} />
+                    </button>
+
+                    {/* Private Note button */}
+                    <button
+                      onClick={() => {
+                        soundManager.playCardClick();
+                        setNoteInput(cardNotes[currentQ.id] || '');
+                        setShowNoteModal(true);
+                      }}
+                      className={`p-1.5 rounded-full border transition relative ${cardNotes[currentQ.id] ? 'bg-[#C8A96B]/20 border-[#C8A96B] text-[#9E7B35] dark:text-[#DFC894]' : 'border-gray-300 dark:border-gray-700 text-gray-400'}`}
+                      title={cardNotes[currentQ.id] ? 'عرض/تعديل ملاحظتك' : 'إضافة ملاحظة خاصة'}
+                    >
+                      <Edit3 size={15} />
+                      {cardNotes[currentQ.id] && (
+                        <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#C8A96B]" />
+                      )}
+                    </button>
 
                     <button
                       onClick={() => handleToggleFavorite(currentQ.id)}
                       className={`p-1.5 rounded-full border transition ${isCurrentFav ? 'bg-red-500/15 border-red-500 text-red-500' : 'border-gray-300 dark:border-gray-700 text-gray-400'}`}
                       title={isCurrentFav ? 'إزالة من المفضلة' : 'إضافة للمفضلة'}
                     >
-                      <Bookmark size={16} className={isCurrentFav ? 'fill-current' : ''} />
+                      <Bookmark size={15} className={isCurrentFav ? 'fill-current' : ''} />
                     </button>
                   </div>
                 </div>
@@ -1018,6 +1405,25 @@ jobs:
                         {currentQ.question}
                       </p>
                     </div>
+
+                    {/* Note preview if user saved note for this card */}
+                    {cardNotes[currentQ.id] && (
+                      <div
+                        onClick={() => {
+                          setNoteInput(cardNotes[currentQ.id]);
+                          setShowNoteModal(true);
+                        }}
+                        className="mt-2 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-right cursor-pointer"
+                      >
+                        <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1 mb-0.5">
+                          <FileText size={11} />
+                          <span>ملاحظتك المحفوظة:</span>
+                        </div>
+                        <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2">
+                          {cardNotes[currentQ.id]}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Follow-up question reveal */}
                     <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
@@ -1198,6 +1604,44 @@ jobs:
                     })}
                   </div>
                 </div>
+
+                {/* Hide already explored questions filter option */}
+                {(() => {
+                  let pool = MAWADDA_DATA.questions.filter(q => selectedCats.includes(q.categoryId));
+                  if (selectedLevel) pool = pool.filter(q => q.level === selectedLevel);
+                  const freshCount = pool.filter(q => !exploredIds.includes(q.id)).length;
+
+                  return (
+                    <div
+                      onClick={() => {
+                        soundManager.playCardClick();
+                        setHideExplored(prev => !prev);
+                      }}
+                      className={`p-3.5 rounded-2xl border transition cursor-pointer flex items-center justify-between ${
+                        hideExplored
+                          ? 'bg-[#176B5B]/10 dark:bg-[#176B5B]/20 border-[#176B5B]'
+                          : 'bg-white dark:bg-[#162B26] border-gray-200 dark:border-gray-800'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className={`p-2 rounded-xl ${hideExplored ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                          {hideExplored ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                            استبعاد الأسئلة المستكشفة مسبقاً
+                          </div>
+                          <div className="text-[11px] text-gray-500">
+                            {freshCount > 0 ? `${freshCount} سؤالاً جديداً متاحاً في هذا الاختيار` : 'تم استكشاف كافة أسئلة هذا التحديد'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition ${hideExplored ? 'bg-[#176B5B] border-[#176B5B] text-white' : 'border-gray-300 dark:border-gray-600'}`}>
+                        {hideExplored && <Check size={14} />}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Start Session Button */}
@@ -1419,6 +1863,44 @@ jobs:
                   </button>
                 </div>
 
+                {/* Exploration Preferences */}
+                <div className="p-4 rounded-2xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] space-y-3">
+                  <h4 className="text-xs font-bold text-gray-500 mb-1">تفضيلات استكشاف البطاقات</h4>
+
+                  <div
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setHideExplored(prev => !prev);
+                    }}
+                    className="flex items-center justify-between cursor-pointer p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/40 transition"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className={`p-2 rounded-xl ${hideExplored ? 'bg-[#176B5B] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                        {hideExplored ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                          إخفاء الأسئلة المستكشفة مسبقاً
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {hideExplored ? 'مفعّل — يتم تقديم الأسئلة الجديدة فقط' : 'معطّل — تظهر كافة الأسئلة في الجلسات'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 ${hideExplored ? 'bg-[#176B5B]' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                      <div className={`w-4 h-4 rounded-full bg-white transition-transform ${hideExplored ? 'translate-x-0' : '-translate-x-5'}`} />
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] text-gray-400 bg-gray-50 dark:bg-black/20 p-2.5 rounded-xl flex items-center justify-between">
+                    <span>الأسئلة المستكشفة حتى الآن:</span>
+                    <span className="font-bold text-[#176B5B] dark:text-[#32A790]">
+                      {exploredIds.length} من 900 سؤال ({Math.round((exploredIds.length / 900) * 100)}%)
+                    </span>
+                  </div>
+                </div>
+
                 {/* Reset Actions */}
                 <div className="p-4 rounded-2xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] space-y-2">
                   <h4 className="text-xs font-bold text-gray-500 mb-1">إدارة البيانات والمحفوظات</h4>
@@ -1432,6 +1914,23 @@ jobs:
                       <span>إعادة ضبط سجل الأسئلة المستكشفة</span>
                     </div>
                     <span className="text-[10px] bg-red-100 dark:bg-red-950/40 px-2 py-0.5 rounded">تصفير</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (window.confirm('هل أنت متأكد من حذف كافة الملاحظات الشخصية المدونة على البطاقات؟')) {
+                        setCardNotes({});
+                        localStorage.removeItem('mawadda_card_notes');
+                        alert('تم حذف الملاحظات بنجاح.');
+                      }
+                    }}
+                    className="w-full py-2 px-3 rounded-xl hover:bg-amber-50 dark:hover:bg-amber-950/20 text-amber-700 dark:text-amber-400 flex items-center justify-between text-xs font-bold transition text-right"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <FileText size={15} />
+                      <span>حذف الملاحظات الخاصة المدونة ({Object.keys(cardNotes).length})</span>
+                    </div>
+                    <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 px-2 py-0.5 rounded">مسح</span>
                   </button>
 
                   <button
@@ -1574,7 +2073,7 @@ jobs:
 
               <div className="overflow-y-auto py-3 space-y-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
                 <p className="font-bold text-[#176B5B] dark:text-[#32A790]">
-                  بنيت جميع أسئلة مودة (180 سؤالاً) وفق خمسة معايير شرعية رصينة:
+                  بنيت جميع أسئلة مودة (900 سؤال - 150 لكل محور) وفق خمسة معايير شرعية رصينة:
                 </p>
                 <div className="space-y-2">
                   <div className="p-2.5 rounded-xl bg-[#FAF8F3] dark:bg-black/20 border border-gray-200 dark:border-gray-800">
@@ -1660,7 +2159,7 @@ jobs:
                 تطبيق بطاقات حوارية إسلامية هادفة للتعارف قبل الزواج بضوابط شرعية وقيم إسلامية راقية.
               </p>
               <div className="text-[11px] text-gray-400">
-                180 سؤالاً أصيلاً عبر 6 محاور و 3 مستويات تعمق.
+                900 سؤال أصيل (150 لكل محور) عبر 6 محاور و 3 مستويات تعمق.
               </div>
               <button
                 onClick={() => setShowAboutModal(false)}
@@ -1714,7 +2213,7 @@ jobs:
                       <span>تحميل ملف APK المترجم مباشرة (23.1 ميجابايت)</span>
                     </h5>
                     <p className="text-[11px] text-white/80 mt-0.5">
-                      تم بناؤه وتوقيعه بنجاح عبر خوادم GitHub مع كافة الأسئلة الـ 180 والأصوات والأيقونات جاهزاً لهاتفك.
+                      تم بناؤه وتوقيعه بنجاح عبر خوادم GitHub مع كافة الأسئلة الـ 900 والأصوات والأيقونات جاهزاً لهاتفك.
                     </p>
                   </div>
                   <a
@@ -1735,7 +2234,7 @@ jobs:
                       <span>تنزيل حزمة كود Flutter كاملة (ZIP)</span>
                     </h5>
                     <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">
-                      يحتوي على كافة ملفات المشروع: Dart، وAndroid Gradle، و180 سؤالاً، والاختبارات، وسير عمل الـ APK.
+                      يحتوي على كافة ملفات المشروع: Dart، وAndroid Gradle، و900 سؤالاً، والاختبارات، وسير عمل الـ APK.
                     </p>
                   </div>
                   <a
@@ -1785,7 +2284,7 @@ jobs:
                 {/* Download questions dataset */}
                 <div className="flex justify-between items-center p-3 rounded-xl border border-gray-200 dark:border-gray-800">
                   <div>
-                    <span className="font-bold block text-gray-900 dark:text-gray-100">قاعدة بيانات الأسئلة (180 سؤالاً كاملاً)</span>
+                    <span className="font-bold block text-gray-900 dark:text-gray-100">قاعدة بيانات الأسئلة (900 سؤال كامل)</span>
                     <span className="text-[11px] text-gray-500">مخزنة في `assets/questions/questions.json`</span>
                   </div>
                   <button
@@ -1917,6 +2416,76 @@ jobs:
             </motion.div>
           </div>
         )}
+        {/* MODAL: PRIVATE NOTE ON CARD */}
+        <AnimatePresence>
+          {showNoteModal && currentQ && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#162B26] p-5 shadow-2xl border border-[#C8A96B]/50 space-y-3"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2">
+                    <Edit3 size={18} className="text-[#C8A96B]" />
+                    <h4 className="font-bold text-sm">ملاحظة شخصية على هذا السؤال</h4>
+                  </div>
+                  <button
+                    onClick={() => setShowNoteModal(false)}
+                    className="text-gray-400 hover:text-black dark:hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-gray-500 bg-gray-50 dark:bg-black/20 p-2 rounded-xl">
+                  {currentQ.question}
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
+                    دوّن خواطرك أو النقاط التي ترغب في تذكرها:
+                  </label>
+                  <textarea
+                    value={noteInput}
+                    onChange={(e) => setNoteInput(e.target.value)}
+                    placeholder="اكتب ملاحظتك الخاصة هنا (تُحفظ سرياً على جهازك فقط)..."
+                    rows={4}
+                    className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0E1D19] text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-[#176B5B] resize-none"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    onClick={() => saveCurrentNote(currentQ.id)}
+                    className="flex-1 py-2.5 rounded-xl bg-[#176B5B] hover:bg-[#12574A] text-white font-bold text-xs shadow-xs transition"
+                  >
+                    حفظ الملاحظة
+                  </button>
+                  {cardNotes[currentQ.id] && (
+                    <button
+                      onClick={() => {
+                        setNoteInput('');
+                        saveCurrentNote(currentQ.id);
+                      }}
+                      className="px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/20 transition"
+                    >
+                      حذف
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowNoteModal(false)}
+                    className="px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </AnimatePresence>
 
     </div>

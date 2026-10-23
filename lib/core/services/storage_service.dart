@@ -86,6 +86,15 @@ class StorageService {
     await _prefs.setString(keyThemeMode, mode);
   }
 
+  // Hide Answered Questions
+  bool getHideAnswered() {
+    return _prefs.getBool('mawadda_hide_answered') ?? false;
+  }
+
+  Future<void> setHideAnswered(bool value) async {
+    await _prefs.setBool('mawadda_hide_answered', value);
+  }
+
   // Reset all progress
   Future<void> resetProgress() async {
     await _prefs.remove(keyAnsweredQuestions);

@@ -32,11 +32,17 @@ import {
   Share2,
   FileText,
   Filter,
-  CheckSquare,
-  Activity
+  Activity,
+  Dices,
+  Users2,
+  Zap,
+  RefreshCw,
+  Trophy,
+  Shuffle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MAWADDA_DATA, Question, Category } from './data/questionsData';
+import { RAPID_PAIRS, RapidPair } from './data/rapidPairsData';
 import { soundManager } from './utils/audio';
 import { usePWAInstall } from './utils/usePWAInstall';
 
@@ -119,6 +125,18 @@ export default function App() {
   const [gameIndex, setGameIndex] = useState<number>(0);
   const [showFollowUp, setShowFollowUp] = useState<boolean>(false);
   const [gameCategory, setGameCategory] = useState<Category | null>(null);
+
+  // Interactive Deck & Game Modes state
+  const [gameMode, setGameMode] = useState<'deck' | 'couples' | 'wheel' | 'rapid'>('deck');
+  const [isCardFlipped, setIsCardFlipped] = useState<boolean>(false);
+  const [couplesTurn, setCouplesTurn] = useState<'groom' | 'bride'>('groom');
+  const [couplesScore, setCouplesScore] = useState<number>(0);
+  const [showPartnerGuess, setShowPartnerGuess] = useState<boolean>(false);
+  const [wheelSpinning, setWheelSpinning] = useState<boolean>(false);
+  const [wheelRotation, setWheelRotation] = useState<number>(0);
+  const [wheelSelectedCat, setWheelSelectedCat] = useState<Category | null>(null);
+  const [rapidIndex, setRapidIndex] = useState<number>(0);
+  const [rapidSelections, setRapidSelections] = useState<Record<number, { groom?: 'A' | 'B'; bride?: 'A' | 'B' }>>({});
 
   // Custom Session Creator state
   const [selectedCats, setSelectedCats] = useState<string[]>(MAWADDA_DATA.categories.map(c => c.id));
@@ -354,9 +372,17 @@ export default function App() {
     startGame(filteredList, null, `جلسة الأسئلة المفضلة (${filteredList.length} بطاقة)`);
   };
 
-  // Next question
+  // Next question / Draw Card
   const handleNextQuestion = () => {
-    soundManager.playCardClick();
+    soundManager.playCardSwipe();
+    setIsCardFlipped(false);
+    setShowPartnerGuess(false);
+
+    // Switch turns in couples mode
+    if (gameMode === 'couples') {
+      setCouplesTurn(prev => prev === 'groom' ? 'bride' : 'groom');
+    }
+
     if (gameIndex < gameQuestions.length - 1) {
       const nextIdx = gameIndex + 1;
       setGameIndex(nextIdx);
@@ -373,6 +399,8 @@ export default function App() {
   // Previous question
   const handlePrevQuestion = () => {
     soundManager.playCardClick();
+    setIsCardFlipped(false);
+    setShowPartnerGuess(false);
     if (gameIndex > 0) {
       const prevIdx = gameIndex - 1;
       setGameIndex(prevIdx);
@@ -381,6 +409,82 @@ export default function App() {
         setActiveSession({ ...activeSession, currentIndex: prevIdx });
       }
     }
+  };
+
+  // Shuffle remaining deck cards
+  const shuffleDeck = () => {
+    soundManager.playCardSwipe();
+    setIsCardFlipped(false);
+    const before = gameQuestions.slice(0, gameIndex);
+    const remaining = gameQuestions.slice(gameIndex);
+    const shuffled = [...remaining].sort(() => 0.5 - Math.random());
+    setGameQuestions([...before, ...shuffled]);
+  };
+
+  // Spin Lucky Wheel
+  const spinWheel = () => {
+    if (wheelSpinning) return;
+    setWheelSpinning(true);
+    setWheelSelectedCat(null);
+
+    const cats = MAWADDA_DATA.categories;
+    const randomCatIdx = Math.floor(Math.random() * cats.length);
+    const degreesPerSlice = 360 / cats.length;
+    const targetDeg = 360 * 5 + (cats.length - randomCatIdx) * degreesPerSlice - degreesPerSlice / 2;
+    const nextRot = wheelRotation + targetDeg;
+    setWheelRotation(nextRot);
+
+    let tickCount = 0;
+    const tickInterval = setInterval(() => {
+      soundManager.playWheelTick();
+      tickCount++;
+      if (tickCount >= 18) clearInterval(tickInterval);
+    }, 120);
+
+    setTimeout(() => {
+      setWheelSpinning(false);
+      const chosen = cats[randomCatIdx];
+      setWheelSelectedCat(chosen);
+      soundManager.playSuccess();
+
+      // Filter questions for chosen category
+      const pool = MAWADDA_DATA.questions.filter(q => q.categoryId === chosen.id);
+      const randomQ = pool[Math.floor(Math.random() * pool.length)];
+      if (randomQ) {
+        const updated = [...gameQuestions];
+        updated[gameIndex] = randomQ;
+        setGameQuestions(updated);
+        setGameCategory(chosen);
+        setIsCardFlipped(false);
+      }
+    }, 2600);
+  };
+
+  // Record couples match points
+  const recordCouplesMatch = (isMatch: boolean) => {
+    if (isMatch) {
+      soundManager.playSuccess();
+      setCouplesScore(prev => prev + 1);
+    } else {
+      soundManager.playCardClick();
+    }
+    handleNextQuestion();
+  };
+
+  // Rapid pair choice
+  const handleRapidChoice = (option: 'A' | 'B', partner: 'groom' | 'bride') => {
+    soundManager.playCardClick();
+    setRapidSelections(prev => {
+      const current = prev[rapidIndex] || {};
+      const updated = { ...current, [partner]: option };
+      if (updated.groom && updated.bride) {
+        if (updated.groom === updated.bride) {
+          soundManager.playSuccess();
+          setCouplesScore(s => s + 1);
+        }
+      }
+      return { ...prev, [rapidIndex]: updated };
+    });
   };
 
   // Resume active session
@@ -1310,7 +1414,7 @@ jobs:
 
           {/* SCREEN: GAME / QUESTION CARDS (Core experience) */}
           {currentScreen === 'game' && currentQ && (
-            <div className="flex-1 flex flex-col justify-between p-5 overflow-hidden relative">
+            <div className="flex-1 flex flex-col justify-between p-4 sm:p-5 overflow-hidden relative">
               {/* Toast for copied card */}
               <AnimatePresence>
                 {copiedCardNotice && (
@@ -1318,7 +1422,7 @@ jobs:
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
-                    className="absolute top-2 left-1/2 -translate-x-1/2 z-30 bg-[#176B5B] text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5"
+                    className="absolute top-2 left-1/2 -translate-x-1/2 z-40 bg-[#176B5B] text-white px-3.5 py-1.5 rounded-full text-xs font-bold shadow-lg flex items-center gap-1.5"
                   >
                     <Check size={14} className="text-[#DFC894]" />
                     <span>تم نسخ السؤال للحافظة بنجاح</span>
@@ -1395,6 +1499,69 @@ jobs:
                   </div>
                 </div>
 
+                {/* Game Mode Switcher Tab Bar */}
+                <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-black/30 rounded-xl mb-2.5">
+                  <button
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setGameMode('deck');
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${
+                      gameMode === 'deck'
+                        ? 'bg-white dark:bg-[#162B26] text-[#176B5B] dark:text-[#32A790] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Layers size={13} />
+                    <span>سحب الكروت</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setGameMode('couples');
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${
+                      gameMode === 'couples'
+                        ? 'bg-white dark:bg-[#162B26] text-[#176B5B] dark:text-[#32A790] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Users2 size={13} />
+                    <span>تحدي الشريكين</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setGameMode('wheel');
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${
+                      gameMode === 'wheel'
+                        ? 'bg-white dark:bg-[#162B26] text-[#176B5B] dark:text-[#32A790] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Dices size={13} />
+                    <span>عجلة الحوار</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      soundManager.playCardClick();
+                      setGameMode('rapid');
+                    }}
+                    className={`flex-1 py-1.5 px-2 rounded-lg text-[11px] font-bold transition flex items-center justify-center gap-1 ${
+                      gameMode === 'rapid'
+                        ? 'bg-white dark:bg-[#162B26] text-[#176B5B] dark:text-[#32A790] shadow-xs'
+                        : 'text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'
+                    }`}
+                  >
+                    <Zap size={13} />
+                    <span>إما / أو</span>
+                  </button>
+                </div>
+
                 {/* Progress bar */}
                 <div className="flex justify-between text-[11px] text-gray-500 font-semibold mb-1">
                   <span>{currentCat?.nameArabic || 'جلسة حوارية'}</span>
@@ -1408,129 +1575,441 @@ jobs:
                 </div>
               </div>
 
-              {/* Big Question Card */}
-              <div className="my-auto py-2">
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentQ.id}
-                    initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -15 }}
-                    transition={{ duration: 0.25 }}
-                    className="w-full rounded-3xl p-6 bg-white dark:bg-[#162B26] border-2 shadow-xl flex flex-col justify-between min-h-[350px] relative overflow-hidden"
-                    style={{ borderColor: `${currentCatColor}40` }}
-                  >
-                    {/* Background subtle Islamic floral watermark */}
-                    <div className="absolute -top-12 -left-12 opacity-5 pointer-events-none">
-                      <Heart size={200} />
-                    </div>
+              {/* MODE 1 & 2: DECK SWIPING & COUPLES CHALLENGE */}
+              {(gameMode === 'deck' || gameMode === 'couples') && (
+                <div className="my-auto py-2 flex flex-col items-center justify-center">
+                  {/* Couples challenge turn & score banner */}
+                  {gameMode === 'couples' && (
+                    <div className="w-full max-w-sm mb-3 flex items-center justify-between px-3 py-2 rounded-2xl bg-gradient-to-r from-[#176B5B]/15 to-[#C8A96B]/20 border border-[#C8A96B]/40">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{couplesTurn === 'groom' ? '🤵' : '👰'}</span>
+                        <div className="text-right">
+                          <div className="text-[10px] text-gray-500 font-bold">الدور الحالي للسحب والإجابة:</div>
+                          <div className="text-xs font-black text-[#176B5B] dark:text-[#32A790]">
+                            {couplesTurn === 'groom' ? 'دور الخطيب 👨' : 'دور الخطيبة 👩'}
+                          </div>
+                        </div>
+                      </div>
 
-                    {/* Top category pill */}
-                    <div className="flex justify-center mb-3">
-                      <div
-                        className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs"
-                        style={{ backgroundColor: `${currentCatColor}15`, color: currentCatColor }}
-                      >
-                        <Heart size={13} className="fill-current" />
-                        <span>{currentCat?.nameArabic || 'محور الحوار'}</span>
+                      <div className="flex items-center gap-1.5 bg-white/70 dark:bg-black/40 px-2.5 py-1 rounded-xl border border-[#C8A96B]/30">
+                        <Trophy size={14} className="text-[#C8A96B]" />
+                        <span className="text-[11px] font-extrabold text-[#9E7B35] dark:text-[#DFC894]">
+                          نقاط التوافق: {couplesScore}
+                        </span>
                       </div>
                     </div>
+                  )}
 
-                    {/* Question text */}
-                    <div className="my-auto text-center px-2">
-                      <p className="text-xl sm:text-2xl font-bold leading-relaxed text-gray-900 dark:text-gray-100 font-['Tajawal']">
-                        {currentQ.question}
-                      </p>
-                    </div>
-
-                    {/* Note preview if user saved note for this card */}
-                    {cardNotes[currentQ.id] && (
+                  {/* 3D Physical Card Stack */}
+                  <div className="relative w-full max-w-sm h-[360px] sm:h-[390px] flex items-center justify-center perspective-[1200px]">
+                    {/* Layer 3: Deepest card under deck */}
+                    {gameQuestions[gameIndex + 2] && (
                       <div
-                        onClick={() => {
-                          setNoteInput(cardNotes[currentQ.id]);
-                          setShowNoteModal(true);
+                        className="absolute inset-0 rounded-3xl bg-[#F4F1EA] dark:bg-[#12221E] border border-[#E7E1D5] dark:border-[#203D35] shadow-xs pointer-events-none transition-all duration-300"
+                        style={{
+                          transform: 'translateY(16px) scale(0.91) rotate(-3deg)',
+                          opacity: 0.5,
+                          borderColor: `${currentCatColor}25`
                         }}
-                        className="mt-2 p-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-right cursor-pointer"
                       >
-                        <div className="text-[10px] font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1 mb-0.5">
-                          <FileText size={11} />
-                          <span>ملاحظتك المحفوظة:</span>
+                        <div className="w-full h-full rounded-3xl flex items-center justify-center opacity-10">
+                          <Heart size={100} />
                         </div>
-                        <p className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2">
-                          {cardNotes[currentQ.id]}
-                        </p>
                       </div>
                     )}
 
-                    {/* Follow-up question reveal */}
-                    <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                      {currentQ.followUp && !showFollowUp && (
+                    {/* Layer 2: Middle card under deck */}
+                    {gameQuestions[gameIndex + 1] && (
+                      <div
+                        className="absolute inset-0 rounded-3xl bg-[#FAF8F3] dark:bg-[#142621] border border-[#E7E1D5] dark:border-[#203D35] shadow-md pointer-events-none transition-all duration-300"
+                        style={{
+                          transform: 'translateY(8px) scale(0.96) rotate(2deg)',
+                          opacity: 0.8,
+                          borderColor: `${currentCatColor}40`
+                        }}
+                      >
+                        <div className="w-full h-full rounded-3xl flex items-center justify-center opacity-15">
+                          <Heart size={120} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Layer 1: Active Interactive Top Card (Draggable + 3D Flip) */}
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={currentQ.id}
+                        drag="x"
+                        dragConstraints={{ left: 0, right: 0 }}
+                        dragElastic={0.65}
+                        onDragEnd={(_, info) => {
+                          if (Math.abs(info.offset.x) > 80 || Math.abs(info.velocity.x) > 400) {
+                            handleNextQuestion();
+                          }
+                        }}
+                        initial={{ opacity: 0, scale: 0.9, y: 30 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.85, x: 260, rotate: 18 }}
+                        transition={{ type: 'spring', damping: 20, stiffness: 220 }}
+                        className="absolute inset-0 w-full rounded-3xl p-5 sm:p-6 bg-white dark:bg-[#162B26] border-2 shadow-2xl flex flex-col justify-between cursor-grab active:cursor-grabbing select-none overflow-hidden"
+                        style={{ borderColor: `${currentCatColor}55` }}
+                        onClick={() => {
+                          soundManager.playCardFlip();
+                          setIsCardFlipped(!isCardFlipped);
+                        }}
+                      >
+                        {/* Background subtle watermark */}
+                        <div className="absolute -top-10 -left-10 opacity-5 pointer-events-none">
+                          <Heart size={180} />
+                        </div>
+
+                        {/* Top Card Bar */}
+                        <div className="flex justify-between items-center relative z-10">
+                          <div
+                            className="px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-2xs"
+                            style={{ backgroundColor: `${currentCatColor}15`, color: currentCatColor }}
+                          >
+                            <Heart size={12} className="fill-current" />
+                            <span>{currentCat?.nameArabic || 'محور الحوار'}</span>
+                          </div>
+
+                          <div className="text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-black/30 px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <RefreshCw size={11} className={isCardFlipped ? 'rotate-180 transition-transform' : ''} />
+                            <span>{isCardFlipped ? 'ظهر البطاقة' : 'وجه البطاقة'}</span>
+                          </div>
+                        </div>
+
+                        {/* Card Content: Front Face vs Back Face */}
+                        <div className="my-auto py-2 relative z-10 text-center">
+                          {!isCardFlipped ? (
+                            /* FRONT FACE */
+                            <div className="space-y-3">
+                              <p className="text-xl sm:text-2xl font-black leading-relaxed text-gray-900 dark:text-gray-100 font-['Tajawal'] px-1">
+                                {currentQ.question}
+                              </p>
+
+                              <div className="inline-block px-3 py-1 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 text-[11px] text-gray-500 font-semibold">
+                                👆 انقر في أي مكان لقلب البطاقة وكشف السؤال الفرعي
+                              </div>
+                            </div>
+                          ) : (
+                            /* BACK FACE (Details & Coaching) */
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              className="space-y-3 text-right"
+                            >
+                              <div className="p-3 rounded-2xl bg-[#C8A96B]/15 border border-[#C8A96B]/40 text-center">
+                                <div className="text-[10px] font-bold text-[#9E7B35] dark:text-[#DFC894] mb-1 flex items-center justify-center gap-1">
+                                  <Sparkles size={12} />
+                                  <span>السؤال الفرعي لتوسيع الحوار:</span>
+                                </div>
+                                <p className="text-xs text-gray-900 dark:text-gray-100 font-bold leading-relaxed">
+                                  {currentQ.followUp}
+                                </p>
+                              </div>
+
+                              <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 text-[11px] text-gray-600 dark:text-gray-300">
+                                <span className="font-bold text-[#176B5B] dark:text-[#32A790] block mb-0.5">💡 إضاءة مودة:</span>
+                                استمع لشريكك باهتمام دون مقاطعة، فالهدف استكشاف طريقة التفكير وبناء الألفة لا إصدار الأحكام.
+                              </div>
+
+                              {cardNotes[currentQ.id] && (
+                                <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/40 text-[11px]">
+                                  <span className="font-bold text-amber-800 dark:text-amber-300 block mb-0.5">📝 ملاحظتك:</span>
+                                  {cardNotes[currentQ.id]}
+                                </div>
+                              )}
+                            </motion.div>
+                          )}
+                        </div>
+
+                        {/* Card Bottom: Tags & Swipe hint */}
+                        <div className="relative z-10 pt-2 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center text-[10px] text-gray-400">
+                          <span className="flex items-center gap-1">
+                            <ArrowRight size={12} />
+                            <span>اسحب لليمين للتالي</span>
+                          </span>
+                          <div className="flex gap-1">
+                            {currentQ.tags.slice(0, 2).map((t, idx) => (
+                              <span key={idx} className="bg-gray-100 dark:bg-black/20 px-2 py-0.5 rounded-md">
+                                #{t}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Couples Interactive Guessing Prompt */}
+                  {gameMode === 'couples' && (
+                    <div className="w-full max-w-sm mt-3 space-y-2">
+                      {!showPartnerGuess ? (
                         <button
                           onClick={() => {
                             soundManager.playCardClick();
-                            setShowFollowUp(true);
+                            setShowPartnerGuess(true);
                           }}
                           className="w-full py-2 px-3 rounded-xl border border-dashed border-[#C8A96B] text-[#9E7B35] dark:text-[#DFC894] hover:bg-[#C8A96B]/10 transition text-xs font-bold flex items-center justify-center gap-1.5"
                         >
-                          <HelpCircle size={15} />
-                          <span>كشف السؤال الفرعي لتوسيع الحوار</span>
+                          <Users2 size={14} />
+                          <span>خمن إجابة شريكك قبل ما يتكلم 💭</span>
                         </button>
-                      )}
-
-                      {showFollowUp && (
+                      ) : (
                         <motion.div
-                          initial={{ opacity: 0, y: 6 }}
+                          initial={{ opacity: 0, y: -6 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="bg-[#C8A96B]/15 dark:bg-[#C8A96B]/10 border border-[#C8A96B]/40 rounded-xl p-3 text-center"
+                          className="p-3 rounded-2xl bg-white dark:bg-[#162B26] border border-[#C8A96B]/50 shadow-xs space-y-2 text-right"
                         >
-                          <div className="text-[10px] font-bold text-[#9E7B35] dark:text-[#DFC894] mb-1 flex items-center justify-center gap-1">
-                            <Sparkles size={12} />
-                            <span>سؤال فرعي رديف للمناقشة:</span>
+                          <div className="text-xs font-bold text-gray-800 dark:text-gray-200">
+                            توقع الطرف الثاني: ماذا تتوقع أن تكون إجابة {couplesTurn === 'groom' ? 'الخطيب' : 'الخطيبة'}؟
                           </div>
-                          <p className="text-xs text-gray-800 dark:text-gray-200 leading-normal font-semibold">
-                            {currentQ.followUp}
-                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => recordCouplesMatch(true)}
+                              className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-1"
+                            >
+                              <span>اتفقنا! 🎉 (+1)</span>
+                            </button>
+                            <button
+                              onClick={() => recordCouplesMatch(false)}
+                              className="flex-1 py-1.5 px-2 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 text-xs font-bold hover:bg-gray-200 transition flex items-center justify-center gap-1"
+                            >
+                              <span>اختلاف يكملنا 💡</span>
+                            </button>
+                          </div>
                         </motion.div>
                       )}
+                    </div>
+                  )}
+                </div>
+              )}
 
-                      {/* Tags */}
-                      <div className="flex flex-wrap justify-center gap-1 mt-3">
-                        {currentQ.tags.map((t, idx) => (
-                          <span key={idx} className="text-[10px] text-gray-400 bg-gray-100 dark:bg-black/20 px-2 py-0.5 rounded-full">
-                            #{t}
-                          </span>
-                        ))}
+              {/* MODE 3: LUCKY TOPIC WHEEL */}
+              {gameMode === 'wheel' && (
+                <div className="my-auto py-2 flex flex-col items-center justify-center space-y-3">
+                  <div className="text-center">
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-gray-100 flex items-center justify-center gap-1.5">
+                      <Dices size={18} className="text-[#C8A96B]" />
+                      <span>عجلة الحوار الدوارة</span>
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      دوّر العجلة ودع الحظ يختار المحور الذي ستسحبون منه بطاقتكم التالية
+                    </p>
+                  </div>
+
+                  {/* Circular SVG Wheel */}
+                  <div className="relative w-64 h-64 flex items-center justify-center">
+                    {/* Top Pointer Needle */}
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-2 z-20 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[18px] border-t-red-500 drop-shadow-md" />
+
+                    {/* Spinning Disc */}
+                    <div
+                      className="w-full h-full rounded-full border-4 border-white dark:border-[#12221E] shadow-2xl overflow-hidden transition-transform duration-[2500ms] ease-out"
+                      style={{
+                        transform: `rotate(${wheelRotation}deg)`,
+                        background: 'conic-gradient(#176B5B 0deg 45deg, #2A6F97 45deg 90deg, #8B5A2B 90deg 135deg, #4C6B3E 135deg 180deg, #B8860B 180deg 225deg, #7A3E65 225deg 270deg, #0E8388 270deg 315deg, #3F51B5 315deg 360deg)'
+                      }}
+                    >
+                      {/* Category Label Slices Overlay */}
+                      <div className="w-full h-full relative">
+                        {MAWADDA_DATA.categories.map((c, idx) => {
+                          const angle = idx * 45 + 22.5;
+                          return (
+                            <div
+                              key={c.id}
+                              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white font-bold text-[9px] truncate max-w-[80px]"
+                              style={{
+                                transform: `rotate(${angle}deg) translate(75px) rotate(90deg)`,
+                                textShadow: '0 1px 2px rgba(0,0,0,0.8)'
+                              }}
+                            >
+                              {c.nameArabic.split(' ')[0]}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
 
-              {/* Controls bar: Previous, Skip, Next */}
-              <div className="flex items-center justify-between gap-3 pt-2">
+                    {/* Center Button on Wheel */}
+                    <button
+                      onClick={spinWheel}
+                      disabled={wheelSpinning}
+                      className="absolute w-16 h-16 rounded-full bg-white dark:bg-[#162B26] border-2 border-[#C8A96B] shadow-xl flex flex-col items-center justify-center z-10 hover:scale-105 active:scale-95 transition disabled:opacity-80"
+                    >
+                      <Sparkles size={16} className="text-[#C8A96B]" />
+                      <span className="text-[10px] font-black text-gray-800 dark:text-gray-100">
+                        {wheelSpinning ? '...' : 'تدوير'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Selected Category Announcement */}
+                  {wheelSelectedCat && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="p-3 rounded-2xl bg-white dark:bg-[#162B26] border border-[#C8A96B] shadow-md text-center max-w-sm w-full space-y-1"
+                    >
+                      <span className="text-[10px] text-gray-500 font-bold block">استقرت العجلة على محور:</span>
+                      <h5 className="font-black text-sm text-[#176B5B] dark:text-[#32A790]">
+                        {wheelSelectedCat.nameArabic}
+                      </h5>
+                      <button
+                        onClick={() => setGameMode('deck')}
+                        className="mt-1 px-4 py-1.5 rounded-xl bg-[#176B5B] text-white text-xs font-bold shadow-xs hover:bg-[#12574A] transition"
+                      >
+                        سحب بطاقة من هذا المحور 🃏
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+
+              {/* MODE 4: RAPID THIS-OR-THAT ICEBREAKER */}
+              {gameMode === 'rapid' && (
+                <div className="my-auto py-2 flex flex-col items-center justify-center space-y-3">
+                  <div className="text-center">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-300 font-bold text-[10px] mb-1">
+                      بطاقة {rapidIndex + 1} من {RAPID_PAIRS.length} · تحدي إما / أو الخاطف
+                    </span>
+                    <h4 className="font-extrabold text-sm text-gray-900 dark:text-gray-100">
+                      {RAPID_PAIRS[rapidIndex].category}
+                    </h4>
+                  </div>
+
+                  {/* Rapid Dilemma Card */}
+                  <div className="w-full max-w-sm rounded-3xl p-5 bg-white dark:bg-[#162B26] border-2 border-[#C8A96B]/50 shadow-xl space-y-3">
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {/* Option A */}
+                      <button
+                        onClick={() => handleRapidChoice('A', couplesTurn)}
+                        className={`p-4 rounded-2xl border-2 text-center transition flex flex-col items-center justify-between min-h-[140px] ${
+                          rapidSelections[rapidIndex]?.groom === 'A' || rapidSelections[rapidIndex]?.bride === 'A'
+                            ? 'border-[#176B5B] bg-[#176B5B]/10 shadow-xs'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-[#176B5B]'
+                        }`}
+                      >
+                        <span className="text-3xl mb-1">{RAPID_PAIRS[rapidIndex].iconA}</span>
+                        <span className="text-xs font-black text-gray-900 dark:text-gray-100 leading-tight">
+                          {RAPID_PAIRS[rapidIndex].optionA}
+                        </span>
+                        <span className="text-[10px] text-gray-400 mt-2 font-semibold">خيار (أ)</span>
+                      </button>
+
+                      {/* Option B */}
+                      <button
+                        onClick={() => handleRapidChoice('B', couplesTurn)}
+                        className={`p-4 rounded-2xl border-2 text-center transition flex flex-col items-center justify-between min-h-[140px] ${
+                          rapidSelections[rapidIndex]?.groom === 'B' || rapidSelections[rapidIndex]?.bride === 'B'
+                            ? 'border-[#C8A96B] bg-[#C8A96B]/15 shadow-xs'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-[#C8A96B]'
+                        }`}
+                      >
+                        <span className="text-3xl mb-1">{RAPID_PAIRS[rapidIndex].iconB}</span>
+                        <span className="text-xs font-black text-gray-900 dark:text-gray-100 leading-tight">
+                          {RAPID_PAIRS[rapidIndex].optionB}
+                        </span>
+                        <span className="text-[10px] text-gray-400 mt-2 font-semibold">خيار (ب)</span>
+                      </button>
+                    </div>
+
+                    {/* Partner Selections Tag Bar */}
+                    <div className="p-2.5 rounded-xl bg-gray-50 dark:bg-black/20 border border-gray-200 dark:border-gray-800 flex justify-between items-center text-xs">
+                      <div className="flex items-center gap-1.5">
+                        <span>الخطيب 👨:</span>
+                        <span className="font-bold text-[#176B5B] dark:text-[#32A790]">
+                          {rapidSelections[rapidIndex]?.groom ? (rapidSelections[rapidIndex]?.groom === 'A' ? 'خيار (أ)' : 'خيار (ب)') : 'لم يختر بعد'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span>الخطيبة 👩:</span>
+                        <span className="font-bold text-[#C8A96B]">
+                          {rapidSelections[rapidIndex]?.bride ? (rapidSelections[rapidIndex]?.bride === 'A' ? 'خيار (أ)' : 'خيار (ب)') : 'لم تختر بعد'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Match Result if both selected */}
+                    {rapidSelections[rapidIndex]?.groom && rapidSelections[rapidIndex]?.bride && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className={`p-3 rounded-2xl text-center text-xs font-bold ${
+                          rapidSelections[rapidIndex]?.groom === rapidSelections[rapidIndex]?.bride
+                            ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/30'
+                        }`}
+                      >
+                        {rapidSelections[rapidIndex]?.groom === rapidSelections[rapidIndex]?.bride
+                          ? '🎉 تطابق رائع! كلاكما اختار نفس التفضيل.'
+                          : '💡 تنوع جميل يكمل كل منكما الآخر.'}
+                        <p className="text-[10px] font-normal text-gray-600 dark:text-gray-300 mt-1">
+                          {RAPID_PAIRS[rapidIndex].reflectionTip}
+                        </p>
+                      </motion.div>
+                    )}
+
+                    {/* Rapid Controls */}
+                    <div className="flex justify-between items-center pt-1">
+                      <button
+                        onClick={() => setRapidIndex(i => Math.max(0, i - 1))}
+                        disabled={rapidIndex === 0}
+                        className="px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-700 text-xs font-bold disabled:opacity-30"
+                      >
+                        السابق
+                      </button>
+                      <button
+                        onClick={() => setRapidIndex(i => Math.min(RAPID_PAIRS.length - 1, i + 1))}
+                        disabled={rapidIndex === RAPID_PAIRS.length - 1}
+                        className="px-4 py-1.5 rounded-xl bg-[#176B5B] text-white text-xs font-bold shadow-xs hover:bg-[#12574A]"
+                      >
+                        البطاقة التالية
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Controls Bar: Previous, Flip Card, Shuffle, Draw Card */}
+              <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-200 dark:border-gray-800">
                 <button
                   onClick={handlePrevQuestion}
                   disabled={gameIndex === 0}
                   className="p-3 rounded-2xl bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-200 dark:hover:bg-gray-700 transition"
                   title="السؤال السابق"
                 >
-                  <ArrowRight size={20} />
+                  <ArrowRight size={18} />
                 </button>
 
                 <button
-                  onClick={handleNextQuestion}
-                  className="px-4 py-2.5 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition font-semibold"
+                  onClick={() => {
+                    soundManager.playCardFlip();
+                    setIsCardFlipped(!isCardFlipped);
+                  }}
+                  className="px-3 py-2.5 rounded-2xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition text-xs font-bold text-gray-700 dark:text-gray-300 flex items-center gap-1.5"
+                  title="قلب البطاقة للكشف عن التفاصيل"
                 >
-                  تخطي السؤال
+                  <RefreshCw size={14} className={isCardFlipped ? 'rotate-180 transition-transform' : ''} />
+                  <span>{isCardFlipped ? 'الوجه' : 'الظهر'}</span>
+                </button>
+
+                <button
+                  onClick={shuffleDeck}
+                  className="p-3 rounded-2xl border border-gray-300 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-300 transition"
+                  title="خلط الكروت المتبقية"
+                >
+                  <Shuffle size={16} />
                 </button>
 
                 <button
                   onClick={handleNextQuestion}
-                  className="flex-1 py-3 px-4 rounded-2xl text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2"
+                  className="flex-1 py-3 px-4 rounded-2xl text-white font-bold text-xs sm:text-sm shadow-md transition flex items-center justify-center gap-2 hover:opacity-95"
                   style={{ backgroundColor: currentCatColor }}
                 >
-                  <span>{gameIndex === gameQuestions.length - 1 ? 'إنهاء الجلسة' : 'السؤال التالي'}</span>
-                  <ArrowLeft size={18} />
+                  <Layers size={16} />
+                  <span>{gameIndex === gameQuestions.length - 1 ? 'إنهاء الجلسة' : 'اسحب بطاقة 🃏'}</span>
+                  <ArrowLeft size={16} />
                 </button>
               </div>
             </div>

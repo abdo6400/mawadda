@@ -70,7 +70,10 @@ export default function App() {
 
   const [favorites, setFavorites] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('mawadda_favorites') || '[]');
+      const raw = localStorage.getItem('mawadda_favorites');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? Array.from(new Set(parsed)) : [];
     } catch {
       return [];
     }
@@ -78,7 +81,10 @@ export default function App() {
 
   const [exploredIds, setExploredIds] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('mawadda_explored_ids') || '[]');
+      const raw = localStorage.getItem('mawadda_explored_ids');
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? Array.from(new Set(parsed)) : [];
     } catch {
       return [];
     }
@@ -1296,13 +1302,13 @@ jobs:
                               بدء جلسة بهذه الأسئلة
                             </button>
                           </div>
-                          {results.slice(0, 30).map(q => {
+                          {results.slice(0, 30).map((q, idx) => {
                             const cat = MAWADDA_DATA.categories.find(c => c.id === q.categoryId);
                             const isExplored = exploredIds.includes(q.id);
 
                             return (
                               <div
-                                key={q.id}
+                                key={`search-${q.id}-${idx}`}
                                 onClick={() => startGame([q, ...results.filter(item => item.id !== q.id)], cat, `بحث: ${searchQuery}`)}
                                 className="p-3.5 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#176B5B] transition cursor-pointer space-y-1.5"
                               >
@@ -1419,6 +1425,7 @@ jobs:
               <AnimatePresence>
                 {copiedCardNotice && (
                   <motion.div
+                    key="toast-copied"
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -20 }}
@@ -2253,11 +2260,11 @@ jobs:
                       .map(id => MAWADDA_DATA.questions.find(q => q.id === id))
                       .filter((q): q is Question => q !== undefined)
                       .filter(q => (favCategoryFilter ? q.categoryId === favCategoryFilter : true))
-                      .map(q => {
+                      .map((q, qIdx) => {
                         const cat = MAWADDA_DATA.categories.find(c => c.id === q.categoryId);
                         return (
                           <div
-                            key={q.id}
+                            key={`fav-card-${q.id}-${qIdx}`}
                             className="p-4 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] shadow-2xs space-y-2 relative"
                           >
                             <div className="flex items-center justify-between">
@@ -2479,7 +2486,13 @@ jobs:
       {/* MODAL: LEVEL PICKER FOR CATEGORY */}
       <AnimatePresence>
         {levelPickerCategory && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-level-picker"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, y: 50 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2531,14 +2544,20 @@ jobs:
                 </button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: COMPLETION CELEBRATION */}
       <AnimatePresence>
         {showCompletionModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-completion"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2565,14 +2584,20 @@ jobs:
                 العودة للرئيسية
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: ISLAMIC CONTENT GUIDELINES */}
       <AnimatePresence>
         {showIslamicGuidelines && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-islamic-guidelines"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
@@ -2622,14 +2647,20 @@ jobs:
                 فهمت ذلك
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: PRIVACY POLICY */}
       <AnimatePresence>
         {showPrivacyModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-privacy"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2653,14 +2684,20 @@ jobs:
                 إغلاق
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: ABOUT MAWADDA */}
       <AnimatePresence>
         {showAboutModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-about"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2684,14 +2721,20 @@ jobs:
                 إغلاق
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: FLUTTER PROJECT & APK CI EXPLORER DRAWER */}
       <AnimatePresence>
         {showFlutterDrawer && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-flutter-drawer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2820,14 +2863,20 @@ jobs:
                 إغلاق
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* MODAL: DIRECT INSTALL ON PHONE GUIDE */}
       <AnimatePresence>
         {showInstallModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <motion.div
+            key="modal-install-guide"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -2930,78 +2979,84 @@ jobs:
                 إغلاق
               </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
-        {/* MODAL: PRIVATE NOTE ON CARD */}
-        <AnimatePresence>
-          {showNoteModal && currentQ && (
-            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#162B26] p-5 shadow-2xl border border-[#C8A96B]/50 space-y-3"
-              >
-                <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Edit3 size={18} className="text-[#C8A96B]" />
-                    <h4 className="font-bold text-sm">ملاحظة شخصية على هذا السؤال</h4>
-                  </div>
+      </AnimatePresence>
+
+      {/* MODAL: PRIVATE NOTE ON CARD */}
+      <AnimatePresence>
+        {showNoteModal && currentQ && (
+          <motion.div
+            key="modal-private-note"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-sm rounded-3xl bg-white dark:bg-[#162B26] p-5 shadow-2xl border border-[#C8A96B]/50 space-y-3"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Edit3 size={18} className="text-[#C8A96B]" />
+                  <h4 className="font-bold text-sm">ملاحظة شخصية على هذا السؤال</h4>
+                </div>
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  className="text-gray-400 hover:text-black dark:hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="text-[11px] text-gray-500 bg-gray-50 dark:bg-black/20 p-2 rounded-xl">
+                {currentQ.question}
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
+                  دوّن خواطرك أو النقاط التي ترغب في تذكرها:
+                </label>
+                <textarea
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  placeholder="اكتب ملاحظتك الخاصة هنا (تُحفظ سرياً على جهازك فقط)..."
+                  rows={4}
+                  className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0E1D19] text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-[#176B5B] resize-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => saveCurrentNote(currentQ.id)}
+                  className="flex-1 py-2.5 rounded-xl bg-[#176B5B] hover:bg-[#12574A] text-white font-bold text-xs shadow-xs transition"
+                >
+                  حفظ الملاحظة
+                </button>
+                {cardNotes[currentQ.id] && (
                   <button
-                    onClick={() => setShowNoteModal(false)}
-                    className="text-gray-400 hover:text-black dark:hover:text-white"
+                    onClick={() => {
+                      setNoteInput('');
+                      saveCurrentNote(currentQ.id);
+                    }}
+                    className="px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/20 transition"
                   >
-                    ✕
+                    حذف
                   </button>
-                </div>
-
-                <div className="text-[11px] text-gray-500 bg-gray-50 dark:bg-black/20 p-2 rounded-xl">
-                  {currentQ.question}
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300 block mb-1.5">
-                    دوّن خواطرك أو النقاط التي ترغب في تذكرها:
-                  </label>
-                  <textarea
-                    value={noteInput}
-                    onChange={(e) => setNoteInput(e.target.value)}
-                    placeholder="اكتب ملاحظتك الخاصة هنا (تُحفظ سرياً على جهازك فقط)..."
-                    rows={4}
-                    className="w-full p-3 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#0E1D19] text-xs text-gray-900 dark:text-gray-100 focus:outline-none focus:border-[#176B5B] resize-none"
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => saveCurrentNote(currentQ.id)}
-                    className="flex-1 py-2.5 rounded-xl bg-[#176B5B] hover:bg-[#12574A] text-white font-bold text-xs shadow-xs transition"
-                  >
-                    حفظ الملاحظة
-                  </button>
-                  {cardNotes[currentQ.id] && (
-                    <button
-                      onClick={() => {
-                        setNoteInput('');
-                        saveCurrentNote(currentQ.id);
-                      }}
-                      className="px-3 py-2.5 rounded-xl border border-red-300 dark:border-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-50 dark:hover:bg-red-950/20 transition"
-                    >
-                      حذف
-                    </button>
-                  )}
-                  <button
-                    onClick={() => setShowNoteModal(false)}
-                    className="px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                  >
-                    إلغاء
-                  </button>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
+                )}
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  className="px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 text-gray-600 dark:text-gray-400 text-xs font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
 
     </div>

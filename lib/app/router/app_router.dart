@@ -48,12 +48,15 @@ GoRouter createRouter(
           final level = levelStr != null ? int.tryParse(levelStr) : null;
           final customQuestionIds = state.extra as List<String>?;
 
+          final initialMode = state.uri.queryParameters['mode'];
+
           return QuestionGameScreen(
             questionService: questionService,
             storageService: storageService,
             categoryId: categoryId,
             level: level,
             customQuestionIds: customQuestionIds,
+            initialMode: initialMode,
           );
         },
       ),

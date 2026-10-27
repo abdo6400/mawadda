@@ -188,10 +188,10 @@ class CategoriesScreen extends StatelessWidget {
               ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: AppColors.primary,
-                  child: Text('1', style: TextStyle(color: Colors.white)),
+                  child: Text('1', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                title: const Text('المستوى الأول: التعارف الأولي'),
-                subtitle: const Text('أسئلة مريحة وممهدة للنقاش'),
+                title: const Text('المستوى الأول: التعارف الأولي', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('أسئلة مريحة وممهدة للنقاش (100 بطاقة)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push('/game?categoryId=$categoryId&level=1');
@@ -200,10 +200,10 @@ class CategoriesScreen extends StatelessWidget {
               ListTile(
                 leading: const CircleAvatar(
                   backgroundColor: AppColors.secondary,
-                  child: Text('2', style: TextStyle(color: Colors.black)),
+                  child: Text('2', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                 ),
-                title: const Text('المستوى الثاني: فهم أعمق'),
-                subtitle: const Text('تطلعات، مبادئ، وطريقة التفكير'),
+                title: const Text('المستوى الثاني: فهم أعمق', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('القيم والتطلعات وطريقة التفكير (100 بطاقة)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push('/game?categoryId=$categoryId&level=2');
@@ -211,11 +211,11 @@ class CategoriesScreen extends StatelessWidget {
               ),
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Colors.deepOrange,
-                  child: Text('3', style: TextStyle(color: Colors.white)),
+                  backgroundColor: Colors.redAccent,
+                  child: Text('3', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
-                title: const Text('المستوى الثالث: مواقف وقرارات'),
-                subtitle: const Text('سيناريوهات واقعية وقرارات مشتركة'),
+                title: const Text('المستوى الثالث: مواقف وقرارات', style: TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: const Text('سيناريوهات واقعية وقرارات حاسمة (100 بطاقة)'),
                 onTap: () {
                   Navigator.pop(ctx);
                   context.push('/game?categoryId=$categoryId&level=3');

@@ -822,7 +822,7 @@ class _QuestionGameScreenState extends State<QuestionGameScreen> with TickerProv
                   TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: Colors.white,
-                      backgroundColor: Colors.emerald,
+                      backgroundColor: const Color(0xFF10B981),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     ),
@@ -1479,9 +1479,9 @@ class _QuestionGameScreenState extends State<QuestionGameScreen> with TickerProv
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: isMatch ? Colors.emerald.withOpacity(0.12) : Colors.amber.withOpacity(0.12),
+                  color: isMatch ? const Color(0xFF10B981).withOpacity(0.12) : Colors.amber.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: isMatch ? Colors.emerald : Colors.amber),
+                  border: Border.all(color: isMatch ? const Color(0xFF10B981) : Colors.amber),
                 ),
                 child: Column(
                   children: [
@@ -1490,7 +1490,7 @@ class _QuestionGameScreenState extends State<QuestionGameScreen> with TickerProv
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: isMatch ? Colors.emerald : Colors.amber.shade800,
+                        color: isMatch ? const Color(0xFF10B981) : Colors.amber.shade800,
                       ),
                     ),
                     const SizedBox(height: 4),

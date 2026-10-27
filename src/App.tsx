@@ -32,7 +32,8 @@ import {
   Share2,
   FileText,
   Filter,
-  CheckSquare
+  CheckSquare,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MAWADDA_DATA, Question, Category } from './data/questionsData';
@@ -277,7 +278,7 @@ export default function App() {
   };
 
   // Start curated themed session
-  const startCuratedSession = (themeType: 'first_meeting' | 'deen' | 'finance' | 'hard_scenarios') => {
+  const startCuratedSession = (themeType: 'first_meeting' | 'deen' | 'finance' | 'hard_scenarios' | 'health' | 'culture') => {
     soundManager.playCardClick();
     let qs: Question[] = [];
     let title = '';
@@ -297,6 +298,18 @@ export default function App() {
     } else if (themeType === 'finance') {
       title = 'جلسة إدارة المال ومسؤوليات المعيشة (20 بطاقة)';
       const pool = MAWADDA_DATA.questions.filter(q => ['finance_work', 'responsibilities_life'].includes(q.categoryId));
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 20 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
+    } else if (themeType === 'health') {
+      title = 'جلسة العافية والرياضة ونمط العيش (20 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => q.categoryId === 'health_lifestyle');
+      const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
+      const src = filtered.length >= 20 ? filtered : pool;
+      qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
+    } else if (themeType === 'culture') {
+      title = 'جلسة الفكر والثقافة والاهتمامات (20 بطاقة)';
+      const pool = MAWADDA_DATA.questions.filter(q => q.categoryId === 'intellect_interests');
       const filtered = hideExplored ? pool.filter(q => !exploredIds.includes(q.id)) : pool;
       const src = filtered.length >= 20 ? filtered : pool;
       qs = [...src].sort(() => 0.5 - Math.random()).slice(0, 20);
@@ -499,6 +512,12 @@ jobs:
         return <Home {...props} />;
       case 'Coins':
         return <Sparkles {...props} />;
+      case 'Sparkles':
+        return <Sparkles {...props} />;
+      case 'Activity':
+        return <Activity {...props} />;
+      case 'BookOpen':
+        return <BookOpen {...props} />;
       default:
         return <Heart {...props} />;
     }
@@ -756,19 +775,19 @@ jobs:
                     مرحباً بكما في مودة
                   </h3>
                   <p className="text-xs text-white/80 leading-relaxed mb-4">
-                    حوار هادف يبني جسور الألفة، يضم 900 بطاقة حوارية متدرجة وشاملة لكافة جوانب الحياة الزوجية.
+                    حوار هادف يبني جسور الألفة، يضم 2,400 بطاقة حوارية متدرجة وشاملة لكافة جوانب الحياة الزوجية عبر 8 محاور رئيسية.
                   </p>
 
-                  {/* Progress tracker for 900 questions */}
+                  {/* Progress tracker for 2,400 questions */}
                   <div className="bg-white/10 rounded-xl p-3 backdrop-blur-xs">
                     <div className="flex justify-between text-xs mb-1.5 font-semibold">
-                      <span>الأسئلة المستكشفة: {exploredIds.length} من {MAWADDA_DATA.totalQuestions}</span>
-                      <span className="text-[#C8A96B] font-bold">{Math.round((exploredIds.length / MAWADDA_DATA.totalQuestions) * 100)}%</span>
+                      <span>الأسئلة المستكشفة: {exploredIds.length} من {MAWADDA_DATA.questions.length}</span>
+                      <span className="text-[#C8A96B] font-bold">{Math.round((exploredIds.length / MAWADDA_DATA.questions.length) * 100)}%</span>
                     </div>
                     <div className="w-full bg-black/20 h-2 rounded-full overflow-hidden">
                       <div
                         className="bg-gradient-to-r from-[#C8A96B] to-[#DFC894] h-full rounded-full transition-all duration-500"
-                        style={{ width: `${(exploredIds.length / MAWADDA_DATA.totalQuestions) * 100}%` }}
+                        style={{ width: `${(exploredIds.length / MAWADDA_DATA.questions.length) * 100}%` }}
                       />
                     </div>
                   </div>
@@ -787,7 +806,7 @@ jobs:
                       <div className="text-[10px] text-gray-500 dark:text-gray-400">
                         {hideExplored
                           ? `المتبقي: ${MAWADDA_DATA.questions.filter(q => !exploredIds.includes(q.id)).length} سؤال جديد لم يُعرض بعد`
-                          : `يتم تصفح كافة الأسئلة الـ 900`}
+                          : `يتم تصفح كافة الأسئلة الـ 2,400`}
                       </div>
                     </div>
                   </div>
@@ -864,6 +883,24 @@ jobs:
                     </button>
 
                     <button
+                      onClick={() => startCuratedSession('health')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#0E8388] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#0E8388] block mb-1">العافية والرياضة (20)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#0E8388]">الصحة ونمط العيش</span>
+                      <span className="text-[10px] text-gray-500">الراحة النفسية والبدنية</span>
+                    </button>
+
+                    <button
+                      onClick={() => startCuratedSession('culture')}
+                      className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#3F51B5] text-right transition shadow-2xs group"
+                    >
+                      <span className="text-[10px] font-bold text-[#3F51B5] block mb-1">الفكر والاهتمامات (20)</span>
+                      <span className="text-xs font-extrabold text-gray-900 dark:text-gray-100 block group-hover:text-[#3F51B5]">الفكر والثقافة</span>
+                      <span className="text-[10px] text-gray-500">الهوايات والتطوير المستمر</span>
+                    </button>
+
+                    <button
                       onClick={() => startCuratedSession('hard_scenarios')}
                       className="p-3 rounded-xl bg-white dark:bg-[#162B26] border border-[#E7E1D5] dark:border-[#203D35] hover:border-[#7A3E65] text-right transition shadow-2xs group"
                     >
@@ -925,8 +962,8 @@ jobs:
                       <Grid size={16} />
                     </div>
                     <div>
-                      <div className="text-xs font-bold">مكتبة الـ 900 سؤال</div>
-                      <div className="text-[10px] text-gray-500 dark:text-gray-400">6 محاور · بحث وتصفح</div>
+                      <div className="text-xs font-bold">مكتبة الـ 2,400 سؤال</div>
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400">8 محاور · بحث وتصفح شامل</div>
                     </div>
                   </div>
                 </div>
@@ -934,7 +971,7 @@ jobs:
                 {/* Categories Overview List */}
                 <div>
                   <div className="flex justify-between items-center mb-2.5">
-                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">المحاور الرئيسية (150 سؤالاً لكل محور)</h4>
+                    <h4 className="font-bold text-sm text-gray-800 dark:text-gray-200">المحاور الرئيسية (300 سؤالاً لكل محور)</h4>
                     <button
                       onClick={() => setCurrentScreen('categories')}
                       className="text-xs text-[#176B5B] dark:text-[#32A790] font-semibold hover:underline"
@@ -1035,7 +1072,7 @@ jobs:
             </div>
           )}
 
-          {/* SCREEN: CATEGORIES / 900 QUESTIONS LIBRARY */}
+          {/* SCREEN: CATEGORIES / 2,400 QUESTIONS LIBRARY */}
           {currentScreen === 'categories' && (
             <div className="flex-1 flex flex-col justify-between overflow-y-auto">
               <div className="p-5 space-y-4">
@@ -1048,9 +1085,9 @@ jobs:
                       <ArrowRight size={18} />
                     </button>
                     <div>
-                      <h3 className="text-lg font-bold">مكتبة الـ 900 سؤال</h3>
+                      <h3 className="text-lg font-bold">مكتبة الـ 2,400 سؤال</h3>
                       <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                        150 سؤالاً لكل محور عبر 3 مستويات من العمق والتدرج
+                        300 سؤال لكل محور عبر 3 مستويات من العمق والتدرج (8 محاور رئيسية)
                       </p>
                     </div>
                   </div>
@@ -1078,7 +1115,7 @@ jobs:
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="ابحث في 900 سؤال (مثال: صلاة، غضب، ميزانية، أطفال)..."
+                    placeholder="ابحث في 2,400 سؤال (مثال: صلاة، صحة، قراءة، غضب، ميزانية، أطفال)..."
                     className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-[#162B26] text-xs text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-hidden focus:border-[#176B5B]"
                   />
                   {searchQuery && (
@@ -1243,7 +1280,7 @@ jobs:
                               className="flex-1 py-2 rounded-xl text-xs font-bold text-white shadow-xs transition"
                               style={{ backgroundColor: cat.colorHex }}
                             >
-                              {hideExplored ? `بدء الأسئلة الجديدة (${freshCount})` : `بدء المحور كاملاً (150)`}
+                              {hideExplored ? `بدء الأسئلة الجديدة (${freshCount})` : `بدء المحور كاملاً (${catQuestions.length})`}
                             </button>
                             <button
                               onClick={() => setLevelPickerCategory(cat)}
@@ -1896,7 +1933,7 @@ jobs:
                   <div className="text-[11px] text-gray-400 bg-gray-50 dark:bg-black/20 p-2.5 rounded-xl flex items-center justify-between">
                     <span>الأسئلة المستكشفة حتى الآن:</span>
                     <span className="font-bold text-[#176B5B] dark:text-[#32A790]">
-                      {exploredIds.length} من 900 سؤال ({Math.round((exploredIds.length / 900) * 100)}%)
+                      {exploredIds.length} من {MAWADDA_DATA.questions.length} سؤال ({Math.round((exploredIds.length / MAWADDA_DATA.questions.length) * 100)}%)
                     </span>
                   </div>
                 </div>
@@ -1988,7 +2025,7 @@ jobs:
                   className="w-full p-3 rounded-xl bg-white dark:bg-[#0E1D19] border border-gray-200 dark:border-gray-800 hover:border-[#176B5B] transition text-right"
                 >
                   <div className="text-xs font-bold text-[#176B5B] dark:text-[#32A790]">المستوى الأول: التعارف الأولي</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">أسئلة مريحة وممهدة للنقاش (10 بطاقات)</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">أسئلة مريحة وممهدة للنقاش (100 بطاقة)</div>
                 </button>
 
                 <button
@@ -1996,7 +2033,7 @@ jobs:
                   className="w-full p-3 rounded-xl bg-white dark:bg-[#0E1D19] border border-gray-200 dark:border-gray-800 hover:border-[#C8A96B] transition text-right"
                 >
                   <div className="text-xs font-bold text-[#C8A96B]">المستوى الثاني: فهم أعمق</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">القيم والتطلعات وطريقة التفكير (10 بطاقات)</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">القيم والتطلعات وطريقة التفكير (100 بطاقة)</div>
                 </button>
 
                 <button
@@ -2004,14 +2041,14 @@ jobs:
                   className="w-full p-3 rounded-xl bg-white dark:bg-[#0E1D19] border border-gray-200 dark:border-gray-800 hover:border-red-400 transition text-right"
                 >
                   <div className="text-xs font-bold text-red-500">المستوى الثالث: مواقف وقرارات</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">سيناريوهات واقعية وقرارات حاسمة (10 بطاقات)</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">سيناريوهات واقعية وقرارات حاسمة (100 بطاقة)</div>
                 </button>
 
                 <button
                   onClick={() => startCategoryGame(levelPickerCategory.id, null)}
                   className="w-full py-2.5 rounded-xl bg-[#176B5B] text-white text-xs font-bold mt-2 shadow-xs"
                 >
-                  بدء المحور كاملاً (30 بطاقة بالتدرج)
+                  بدء المحور كاملاً (300 بطاقة بالتدرج)
                 </button>
               </div>
             </motion.div>
@@ -2073,7 +2110,7 @@ jobs:
 
               <div className="overflow-y-auto py-3 space-y-3 text-xs leading-relaxed text-gray-700 dark:text-gray-300">
                 <p className="font-bold text-[#176B5B] dark:text-[#32A790]">
-                  بنيت جميع أسئلة مودة (900 سؤال - 150 لكل محور) وفق خمسة معايير شرعية رصينة:
+                  بنيت جميع أسئلة مودة (2,400 سؤال - 300 لكل محور عبر 8 محاور) وفق خمسة معايير شرعية رصينة:
                 </p>
                 <div className="space-y-2">
                   <div className="p-2.5 rounded-xl bg-[#FAF8F3] dark:bg-black/20 border border-gray-200 dark:border-gray-800">
@@ -2159,7 +2196,7 @@ jobs:
                 تطبيق بطاقات حوارية إسلامية هادفة للتعارف قبل الزواج بضوابط شرعية وقيم إسلامية راقية.
               </p>
               <div className="text-[11px] text-gray-400">
-                900 سؤال أصيل (150 لكل محور) عبر 6 محاور و 3 مستويات تعمق.
+                2,400 سؤال أصيل (300 لكل محور) عبر 8 محاور و 3 مستويات تعمق.
               </div>
               <button
                 onClick={() => setShowAboutModal(false)}
@@ -2213,7 +2250,7 @@ jobs:
                       <span>تحميل ملف APK المترجم مباشرة (23.1 ميجابايت)</span>
                     </h5>
                     <p className="text-[11px] text-white/80 mt-0.5">
-                      تم بناؤه وتوقيعه بنجاح عبر خوادم GitHub مع كافة الأسئلة الـ 900 والأصوات والأيقونات جاهزاً لهاتفك.
+                      تم بناؤه وتوقيعه بنجاح عبر خوادم GitHub مع كافة الأسئلة الـ 2,400 والأصوات والأيقونات جاهزاً لهاتفك.
                     </p>
                   </div>
                   <a
@@ -2234,7 +2271,7 @@ jobs:
                       <span>تنزيل حزمة كود Flutter كاملة (ZIP)</span>
                     </h5>
                     <p className="text-[11px] text-gray-600 dark:text-gray-300 mt-0.5">
-                      يحتوي على كافة ملفات المشروع: Dart، وAndroid Gradle، و900 سؤالاً، والاختبارات، وسير عمل الـ APK.
+                      يحتوي على كافة ملفات المشروع: Dart، وAndroid Gradle، و2,400 سؤالاً، والاختبارات، وسير عمل الـ APK.
                     </p>
                   </div>
                   <a
@@ -2284,7 +2321,7 @@ jobs:
                 {/* Download questions dataset */}
                 <div className="flex justify-between items-center p-3 rounded-xl border border-gray-200 dark:border-gray-800">
                   <div>
-                    <span className="font-bold block text-gray-900 dark:text-gray-100">قاعدة بيانات الأسئلة (900 سؤال كامل)</span>
+                    <span className="font-bold block text-gray-900 dark:text-gray-100">قاعدة بيانات الأسئلة (2,400 سؤال كامل)</span>
                     <span className="text-[11px] text-gray-500">مخزنة في `assets/questions/questions.json`</span>
                   </div>
                   <button

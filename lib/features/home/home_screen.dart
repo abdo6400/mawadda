@@ -423,6 +423,10 @@ class HomeScreen extends StatelessWidget {
         return Icons.account_balance_wallet_rounded;
       case 'Sparkles':
         return Icons.family_restroom_rounded;
+      case 'Activity':
+        return Icons.favorite_rounded;
+      case 'BookOpen':
+        return Icons.menu_book_rounded;
       default:
         return Icons.chat_bubble_outline_rounded;
     }

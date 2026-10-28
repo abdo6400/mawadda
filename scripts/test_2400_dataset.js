@@ -129,6 +129,9 @@ for (const q of questions) {
       throw new Error(`Previously corrected phrase in ${q.id}: ${phrase}`);
     }
   }
+  if (/حمام|استحمام|مساج(?!د)|تدليك/.test(`${q.question} ${q.followUp} ${q.tags.join(' ')}`)) {
+    throw new Error(`Personal-care detail needs review in ${q.id}`);
+  }
 }
 
 console.log('✅ ALL 2,400 questions verified with 100% data integrity:');

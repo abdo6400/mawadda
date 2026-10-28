@@ -157,7 +157,7 @@ const List<RapidPairModel> kRapidPairs = [
   RapidPairModel(
     id: 16,
     optionA: "نقاش الخلافات بعقل ومنطق وأدلة",
-    optionB: "احتواء عاطفي وحضن وطبطبة أولاً",
+    optionB: "الإنصات والتهدئة قبل مناقشة الحل",
     iconA: "🧠",
     iconB: "❤️",
     category: "المعالجة النفسية",

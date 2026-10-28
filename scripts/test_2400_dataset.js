@@ -9,6 +9,16 @@ const data = JSON.parse(rawData);
 
 const { categories, questions } = data;
 
+// Both applications must display the same content for every saved question ID.
+const webSource = fs.readFileSync('src/data/questionsData.ts', 'utf8');
+const marker = 'export const MAWADDA_DATA: MawaddaData = ';
+const start = webSource.indexOf(marker);
+if (start < 0) throw new Error('Web question dataset not found');
+const webData = JSON.parse(webSource.slice(start + marker.length).trim().replace(/;$/, ''));
+if (JSON.stringify(webData) !== JSON.stringify(data)) {
+  throw new Error('Flutter and web question datasets differ');
+}
+
 // 1. Categories check
 if (!categories || categories.length !== 8) {
   throw new Error(`Expected exactly 8 categories, got ${categories ? categories.length : 0}`);
@@ -103,6 +113,24 @@ for (const q of questions) {
   }
 }
 
+// Catch specific previously corrected phrases; this is not a semantic or
+// scholarly review and must not be treated as proof of content compliance.
+const correctedPhrases = [
+  'علاقات سابقة',
+  'علاقة حميمية',
+  'ننام معاً',
+  'بطانية واحدة',
+  'داووا مرضاكم بالصدقة',
+  'بروا آباءكم تبركم أبناؤكم',
+];
+for (const q of questions) {
+  for (const phrase of correctedPhrases) {
+    if (`${q.question} ${q.followUp}`.includes(phrase)) {
+      throw new Error(`Previously corrected phrase in ${q.id}: ${phrase}`);
+    }
+  }
+}
+
 console.log('✅ ALL 2,400 questions verified with 100% data integrity:');
 console.log(' - 8 Categories (Added: الصحة والعافية ونمط العيش، الفكر والثقافة والاهتمامات)');
 console.log(' - Exactly 300 Questions per Category (100 Level 1, 100 Level 2, 100 Level 3)');
@@ -110,4 +138,4 @@ console.log(' - 100% Unique Question IDs (2,400 / 2,400)');
 console.log(' - 100% Unique Question Texts (2,400 / 2,400 - ZERO DUPLICATES)');
 console.log(' - 100% Unique Follow-up Texts (2,400 / 2,400 - ZERO DUPLICATES)');
 console.log(' - ZERO index numbers like (1) or (${i}) in question texts');
-console.log(' - Complete Arabic questions with deep follow-ups and meaningful tags');
+console.log(' - Flutter and web datasets match');

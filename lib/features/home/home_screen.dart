@@ -218,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Welcome & Spiritual Quote Card
+            // Welcome card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20.0),
@@ -269,14 +269,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '2,400 سؤال حواري أصيل عبر 8 محاور متكاملة تبني جسور التفاهم والسكينة قبل الزواج.',
+                    'حوارٌ يُمهّد للمودّة',
+                    style: TextStyle(
+                      fontSize: 25,
+                      height: 1.4,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? AppColors.textDark : AppColors.primaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'أسئلة للحوار الجاد قبل الزواج، في مجلس أسري يحفظ الخصوصية والحياء.',
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.5,
                       color: isDark ? AppColors.textDark : AppColors.textLight,
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push('/categories'),
+                      icon: const Icon(Icons.auto_stories_outlined),
+                      label: const Text('ابدأ الحوار'),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // Progress summary bar
                   Row(
@@ -400,7 +419,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _buildModeCard(
                   icon: Icons.bolt_rounded,
                   title: 'تحدي إما / أو',
-                  subtitle: 'ثنائيات خاطفة لقياس التوافق',
+                  subtitle: 'خيارات تفتح باب النقاش',
                   color: const Color(0xFF8B5A2B),
                   onTap: () => context.push('/game?mode=rapid'),
                   isDark: isDark,
